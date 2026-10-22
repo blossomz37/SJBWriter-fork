@@ -127,6 +127,8 @@
       <option value="18px">18</option>
     </select>
 
+    <!-- Shown when the toolbar runs out of room; lists the buttons tucked away -->
+    <button type="button" class="icon-btn toolbar-more hidden" onclick="openOverflowMenu(this, 'formatting')" data-tip="More tools" aria-label="More tools"><svg class="icon" aria-hidden="true"><use href="#i-ellipsis"/></svg></button>
     <button type="button" id="previewToggle" class="icon-btn tip-end" onclick="togglePreview()" data-tip="Preview (⌘E)" aria-label="Preview" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg></button>
 
     <button type="button" id="zenToggle" class="icon-btn tip-end" onclick="toggleZen()" data-tip="Zen mode (⌘⇧F)" aria-label="Zen mode" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-maximize-2"/></svg></button>
@@ -175,6 +177,7 @@
         <button type="button" class="icon-btn tip-up" onclick="undoLastGeneration()" data-tip="Undo last generation" aria-label="Undo last generation" id="undoGenerateBtn" disabled><svg class="icon" aria-hidden="true"><use href="#i-undo-2"/></svg></button>
         <button type="button" class="icon-btn tip-up" onclick="saveCurrentFile()" data-tip="Save (⌘S)" aria-label="Save (⌘S)"><svg class="icon" aria-hidden="true"><use href="#i-save"/></svg></button>
         <button type="button" class="icon-btn tip-up tip-end" onclick="clearPrompt()" data-tip="Clear instruction" aria-label="Clear instruction"><svg class="icon" aria-hidden="true"><use href="#i-eraser"/></svg></button>
+        <button type="button" class="icon-btn tip-up tip-end toolbar-more hidden" onclick="openOverflowMenu(this, 'actions')" data-tip="More actions" aria-label="More actions"><svg class="icon" aria-hidden="true"><use href="#i-ellipsis"/></svg></button>
       </div>
 
       <div id="loadingIndicator" style="display:none;"><svg class="icon" aria-hidden="true"><use href="#i-loader-circle"/></svg> Thinking…</div>
