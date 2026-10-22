@@ -1153,31 +1153,6 @@ async function deleteModel(modelId) {
   await renderModelsManager();
 }
 
-async function moveModel(modelId, direction) {
-
-  const res = await fetch('/move_model', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      id: modelId,
-      direction: direction
-    })
-  });
-
-  const data = await res.json();
-
-  if (data.status !== "moved") {
-    showToast(data.error || "Move failed");
-    return;
-  }
-
-  await fetchModels();
-  await renderModelsManager();
-}
-
-
 async function moveModelToPosition(
   draggedId,
   targetId
@@ -2542,40 +2517,6 @@ function createProjectRow(project) {
   return row;
 }
 
-async function createProject() {
-
-  const name = prompt("Project name:");
-
-  if (!name) return;
-
-  const res = await fetch('/create_project', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      name: name
-    })
-  });
-
-  const data = await res.json();
-
-  if (data.status === "created") {
-
-    currentProject = data.project;
-
-    loadSelections();
-
-    await loadProjects();
-    await loadAll();
-
-  } else {
-
-    showToast(data.error || "Failed to create project");
-  }
-}
-
-
 async function renderLists() {
   await renderSection('promptsList', state.global.prompts || [], 'prompts');
   await renderSection('systemList', state.global.system || [], 'system');
@@ -3657,53 +3598,6 @@ async function moveFolderTo(sectionName, draggedFolderId, targetFilename, target
 
   renderLists();
 }
-
-async function saveSectionOrder(sectionName) {
-  const containerMap = {
-    prompts: 'promptsList',
-    system: 'systemList',
-    background: 'backgroundList',
-    writing: 'writingList'
-  };
-
-  const container =
-    document.getElementById(containerMap[sectionName]);
-
-  const rows = container.querySelectorAll('.file-row');
-
-  const reordered = Array.from(rows).map(row => {
-    const filename = row.dataset.filename;
-
-    const source =
-      sectionName === 'prompts' || sectionName === 'system'
-        ? state.global[sectionName]
-        : state.project[sectionName];
-
-    return source.find(item => {
-      return getFilename(item) === filename;
-    });
-  });
-
-  // Update local state immediately
-  if (sectionName === 'prompts' || sectionName === 'system') {
-    state.global[sectionName] = reordered;
-  } else {
-    state.project[sectionName] = reordered;
-  }
-
-  // Persist backend
-  await fetch('/save_order', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      section: sectionName,
-      items: reordered
-    })
-  });
-}
-
 
 // ---- Ellipsis Menu Logic ----
 function toggleMenu(row, section, filename) {
@@ -5533,11 +5427,6 @@ function closeSettings(restoreModel = false) {
   updateTokenMeter();
 
   document.getElementById("settingsModal").classList.add("hidden");
-}
-
-
-function addModelRow() {
-  showToast("Add Model UI coming next.", "info");
 }
 
 
