@@ -15,6 +15,9 @@
   /* One step of nesting in the sidebar tree */
   --tree-indent: 18px;
 
+  /* AI setup panel: narrower on small windows so the editor keeps room */
+  --ai-panel-w: clamp(240px, 24vw, 320px);
+
   /* Space between the window edge (or a pane edge) and its content */
   --gutter: 16px;
   /* Borderless icon buttons: 6px padding + 1px border before the icon */
@@ -197,7 +200,7 @@ button:hover {
 
 /* Sidebar zone */
 .left {
-  width: 30%;
+  width: clamp(220px, 30%, 440px);
   flex-shrink: 0;
   transition: width 0.18s ease, padding 0.18s ease;
   border-right: 1px solid var(--border);
@@ -1064,7 +1067,7 @@ input[type="radio"] {
 }
 
 #fontSelect {
-  min-width: 125px;
+  min-width: 80px;   /* may shrink before buttons fold away */
 }
 
 #fontSizeSelect {
@@ -1821,7 +1824,7 @@ body.zen .zen-exit {
 .ai-panel {
   display: none;
   flex-direction: column;
-  width: 320px;
+  width: var(--ai-panel-w);
   flex-shrink: 0;
   min-height: 0;
   padding: 12px var(--gutter);
@@ -1861,7 +1864,7 @@ body.zen .ai-panel {
 /* Summary chip in the AI dock: what the AI will get */
 .ai-chip {
   position: relative;
-  flex-shrink: 0;   /* the model picker gives way first */
+  flex: 0 1 auto;   /* shrinks less than the model picker */
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1901,7 +1904,7 @@ body.ai-panel-open .ai-chip {
 
 /* Keep toasts clear of the open AI panel */
 body.ai-panel-open .toast-stack {
-  right: 336px;
+  right: calc(var(--ai-panel-w) + 16px);
 }
 
 
@@ -2149,4 +2152,60 @@ body.zen #closeDocBtn {
 .ai-panel-header .ghost-btn,
 .section h3 .sort-btn {
   margin-right: calc(-1 * var(--ghost-inset));
+}
+
+
+/* ===================== TOOLBAR OVERFLOW ===================== */
+.is-overflowed {
+  display: none !important;
+}
+
+#footerModelName {
+  min-width: 110px;
+}
+
+.ai-chip {
+  min-width: 34px;
+}
+
+.overflow-menu .overflow-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.overflow-menu .overflow-item .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+}
+
+.overflow-menu .overflow-item.is-disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.overflow-menu .overflow-item.is-disabled:hover {
+  background: transparent;
+}
+
+/* Chip, model picker, and action buttons share one row, so the row can measure
+   its own overflow; the model picker leads the right-hand group */
+.footer-actions {
+  display: contents;
+}
+
+#footerModelName {
+  margin-left: auto;
+}
+
+.ai-chip {
+  min-width: 150px;   /* keeps "No rules · No pr…" readable before buttons fold */
+}
+
+@media (max-width: 1000px) {
+  .ai-chip {
+    min-width: 34px;
+  }
 }

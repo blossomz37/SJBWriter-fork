@@ -1324,7 +1324,8 @@ async function updateTokenMeter() {
   const join = list => list.join("\n\n---\n\n");
   const tokens = estimateTokens(join(Object.values(parts).flat()));
   const selectedModel = getModelById(settings.modelName);
-  const max = selectedModel?.context || 128000;
+  // Context sizes typed into Manage Models are stored as text
+  const max = Number(selectedModel?.context) || 128000;
 
   let level = "ok";
   if (tokens / max > 0.9) level = "high";
@@ -1336,13 +1337,16 @@ async function updateTokenMeter() {
     : String(n);
   const meter = document.getElementById("tokenMeter");
   meter.dataset.level = level;
-  meter.innerText = `AI request ≈ ${tokens.toLocaleString()} / ${short(max)} tokens`;
+  meter.innerText = `AI request ≈ ${tokens.toLocaleString()} tokens`;
 
-  // Hover: where the tokens come from
-  meter.dataset.tip = Object.entries(parts)
+  // Hover: where the tokens come from, and how much of the model's limit they use
+  const breakdown = Object.entries(parts)
     .filter(([, list]) => list.some(text => text))
     .map(([name, list]) => `${name} ${estimateTokens(join(list)).toLocaleString()}`)
     .join(" · ") || "Nothing to send yet";
+  const used = (tokens / max) * 100;
+  meter.dataset.tip =
+    `${breakdown} — ${used < 0.1 ? "<0.1" : used.toFixed(used < 10 ? 1 : 0)}% of this model's ${short(max)} limit`;
 }
 
 function toggleProjectMenu(e) {
@@ -4230,6 +4234,89 @@ async function closeDocument() {
 
 
 // =====================
+// TOOLBAR OVERFLOW: buttons that do not fit move into a "⋯" menu
+// =====================
+
+// Least important first; Preview and Generate always stay
+const OVERFLOW_GROUPS = {
+  formatting: {
+    bar: ".formatting",
+    hideOrder: ['[aria-label="Bullet list"]', '[aria-label="Heading"]', '[aria-label="Italic"]', '[aria-label="Bold"]', "#zenToggle"]
+  },
+  actions: {
+    bar: ".controls",
+    hideOrder: ['[aria-label="Clear instruction"]', '[aria-label="Save (⌘S)"]', "#undoGenerateBtn", "#stopGenerateBtn"]
+  }
+};
+
+function overflowItems(name) {
+  const bar = document.querySelector(OVERFLOW_GROUPS[name].bar);
+  return OVERFLOW_GROUPS[name].hideOrder.map(sel => bar.querySelector(sel)).filter(Boolean);
+}
+
+function fitToolbar(name) {
+  const bar = document.querySelector(OVERFLOW_GROUPS[name].bar);
+  const more = bar.querySelector(".toolbar-more");
+  const fits = () => bar.scrollWidth <= bar.clientWidth + 1;
+
+  overflowItems(name).forEach(el => el.classList.remove("is-overflowed"));
+  more.classList.add("hidden");
+  if (fits()) return;
+
+  more.classList.remove("hidden");
+  for (const el of overflowItems(name)) {
+    el.classList.add("is-overflowed");
+    if (fits()) break;
+  }
+}
+
+function fitToolbars() {
+  fitToolbar("formatting");
+  fitToolbar("actions");
+}
+
+// Re-fit whenever the writing area changes width (window, sidebar, AI panel)
+new ResizeObserver(fitToolbars).observe(document.querySelector(".right"));
+
+function openOverflowMenu(button, name) {
+  document.querySelectorAll(".file-menu").forEach(m => m.remove());
+
+  const menu = document.createElement("div");
+  menu.className = "file-menu overflow-menu";
+
+  // Same left-to-right order as on the toolbar
+  overflowItems(name)
+    .filter(el => el.classList.contains("is-overflowed"))
+    .reverse()
+    .forEach(el => {
+      const item = document.createElement("div");
+      item.className = "overflow-item";
+      if (el.disabled) item.classList.add("is-disabled");
+      item.innerHTML = el.innerHTML;
+      item.appendChild(document.createTextNode(el.getAttribute("aria-label")));
+      item.onclick = () => {
+        if (!el.disabled) el.click();
+        menu.remove();
+      };
+      menu.appendChild(item);
+    });
+
+  document.body.appendChild(menu);
+
+  // Below the toolbar button, or above it when the button sits low (AI dock)
+  const rect = button.getBoundingClientRect();
+  const menuRect = menu.getBoundingClientRect();
+  const above = rect.top > window.innerHeight / 2;
+  menu.style.top = `${above ? rect.top - menuRect.height - 4 : rect.bottom + 4}px`;
+  menu.style.left = `${Math.max(8, rect.right - menuRect.width)}px`;
+
+  setTimeout(() => {
+    document.addEventListener("click", () => menu.remove(), { once: true });
+  }, 0);
+}
+
+
+// =====================
 // AI SETUP PANEL (System + Prompts, on the right)
 // =====================
 
@@ -4262,6 +4349,7 @@ function updateAiSummary() {
   text.textContent = `${rulesText} · ${prompt}`;
   document.getElementById("aiSummaryChip")
     .classList.toggle("is-active", rules > 0 || Boolean(selected.prompt));
+  fitToolbars();
 }
 
 

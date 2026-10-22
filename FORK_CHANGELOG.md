@@ -9,6 +9,60 @@ fork.
 
 ---
 
+## 2026-10-22: Toolbar overflow menus, and a clearer token meter
+
+**Commit:** `23a25b2`. **Files:** `app/templates/index.html`,
+`app/static/script.js`, `app/static/style.css`.
+
+### 1. Toolbars fold into a "⋯" menu instead of spilling
+
+- **Problem:** on narrower windows, the editor toolbar and the AI action row
+  ran under the AI setup panel. At 1100 px wide, Undo, Save, and Clear were
+  hidden behind it. At 900 px, so were Generate, Preview, and Zen.
+- **How:**
+  - Each bar has a hidden **⋯** button (`.toolbar-more`).
+  - `fitToolbar()` first shows every button. If the bar overflows
+    (`scrollWidth > clientWidth`), it hides buttons one by one in a fixed
+    "least important first" order, until the bar fits:
+    - **Editor toolbar:** bullet list, heading, italic, bold, zen.
+      **Preview always stays.**
+    - **AI actions:** clear, save, undo, stop. **Generate always stays.**
+  - The font and size pickers, the chip, and the model picker shrink before
+    any button folds.
+  - Clicking ⋯ opens a menu of the hidden buttons, in toolbar order, with
+    their icons and labels. Each item calls the original button's `click()`,
+    so all behavior is shared. Disabled buttons (Stop, Undo when unused) show
+    grayed out.
+  - A `ResizeObserver` on the writing area re-fits both bars whenever its
+    width changes: a window resize, the sidebar, or the AI panel. The chip's
+    text changes also trigger a re-fit.
+- **Layout details:**
+  - `.footer-actions` is `display: contents`, so the chip, the model picker,
+    and the buttons share one flex row that can measure its own overflow.
+  - The model picker gets `margin-left: auto` to lead the right-hand group.
+  - The chip keeps at least 150 px (34 px under 1000 px wide).
+  - On small windows the side panels narrow: the sidebar is
+    `clamp(220px, 30%, 440px)` and the AI panel is `--ai-panel-w:
+    clamp(240px, 24vw, 320px)`. Wide windows are unchanged.
+- **Measured:** nothing spills at 1440, 1100, 900, or 760 px. Using Bold from
+  the ⋯ menu wraps the selected text as expected.
+
+### 2. Token meter shows the estimate only
+
+- **Problem:** "AI request ≈ 3,885 / 1M tokens" made the model's limit read
+  like the measurement. With a 1M-token model, it looked as if the meter
+  always said "1M".
+- **How:**
+  - The label is now just **"AI request ≈ 3,885 tokens"**.
+  - The hover text adds the limit after the breakdown, for example "Rules
+    3,239 · This document 28 — 0.4% of this model's 1M limit".
+  - The colored dot still turns amber above 70 % and red above 90 %.
+  - **Context sizes:** sizes typed in Manage Models are saved as text
+    (`"1000000"`), and some are blank. The meter now converts them with
+    `Number(...)`. Blank or zero still falls back to 128k.
+
+---
+
 ## 2026-10-22: One consistent 16 px gutter
 
 **Commit:** `0f94420`. **Files:** `app/static/style.css`, `app/static/script.js`.
