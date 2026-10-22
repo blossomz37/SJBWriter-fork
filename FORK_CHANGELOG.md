@@ -138,6 +138,13 @@ clicking around.
 - **A ? button in the top bar** opens help in a new tab, so the writing
   stays put.
 
+**Portable (`2e86fb4`):** the `help/` folder also works on its own.
+You can zip it, open its pages as plain files, or host it anywhere.
+- The logo and tab icon live in `help/assets/`, so no link points outside
+  the folder.
+- When the pages are not served by the app, `help.js` hides "Back to the
+  app" and follows the computer's light/dark setting.
+
 **Checked:**
 - All pages load, with no errors.
 - All images load.
