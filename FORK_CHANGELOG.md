@@ -9,6 +9,68 @@ fork.
 
 ---
 
+## 2026-10-22: Temperature, reasoning, and an OpenRouter model check
+
+Two commits. **Files:** `app/app.py`, `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`, `.gitignore`.
+
+### 1. Temperature and reasoning (`f5c5fe2`)
+
+- **What the user sees:** a foldable **Generation** block in the AI setup
+  panel, above Output markers:
+  - a **Temperature** slider (0–2, step 0.1, default **0.7**), with a Reset
+    link and "Focused / Varied" end labels
+  - a **Reasoning** picker: Model default, Off, Low, Medium, High
+  - both save as they change (`temperature` and `reasoningEffort` in
+    `app_state.json`)
+- **Sending to OpenRouter**, following OpenRouter's docs:
+  - It sends `temperature`.
+  - Reasoning uses OpenRouter's unified field, `"reasoning": {"effort":
+    "<level>"}`. OpenRouter maps it onto each model family: OpenAI and Grok
+    effort, Anthropic and Gemini thinking budgets.
+  - "Model default" sends no reasoning field at all, so each model behaves as
+    usual. "Off" sends `effort: "none"`.
+- **Sending to Ollama:** `options.temperature`, plus `think: false` for Off or
+  `think: true` for any level. Ollama's thinking is on or off. A model that
+  cannot think may answer with an error, which then shows as a notice.
+- **Server safety:** `generation_options()` caps the temperature to 0–2 and
+  ignores unknown effort values. Older clients that send neither field get
+  exactly the old request.
+
+### 2. Check models against OpenRouter (`0199fee`)
+
+- **What the user sees:**
+  - A **Check OpenRouter** button in Manage Models.
+  - A summary: when it checked, how many models OpenRouter has, which of the
+    user's models are **no longer on OpenRouter**, and which are **leaving
+    soon** (with their date).
+  - Rows get a red "Removed from OpenRouter" or an amber "Leaves Oct 31"
+    badge.
+  - The model picker in the AI dock and Settings adds "(removed from
+    OpenRouter)" or "(leaves Oct 31)" to those names.
+- **How:**
+  - `/check_openrouter_models` fetches OpenRouter's public `GET
+    /api/v1/models` (no key needed). It keeps a compact copy in
+    `Global/openrouter_models.json`, which is git-ignored: name, context
+    length, `expiration_date`, the `reasoning` object, and temperature
+    support.
+  - It returns a status for each of the user's OpenRouter models: available,
+    gone, or leaving.
+  - `/openrouter_catalog` serves the saved copy at startup, so badges and
+    hints appear without a new check.
+- **Reasoning hint:** the note under the Reasoning picker now describes the
+  *selected* model, using the saved copy:
+  - "This model supports: high, medium, low, none (default: low)."
+  - "This model always reasons…, so Off has no effect."
+  - "This model does not reason, so this setting is ignored."
+  - "This model is no longer on OpenRouter."
+  - Ollama models get their own note.
+- **Tested with real data:** OpenRouter listed 468 models. Four of the user's
+  models were flagged as removed, and one as leaving Oct 31. The hints were
+  correct for Grok 4.3, Claude Sonnet 4.6, GPT-4o, and a removed model.
+
+---
+
 ## 2026-10-22: Editor minimum width; AI setup tucks away when space runs out
 
 **Commit:** `e263b3b`. **File:** `app/static/script.js`.
