@@ -480,6 +480,17 @@
           <div class="settings-note">Turn off to use SJB Writer as a plain document editor. The AI setup, instruction box, and Generate are hidden; your AI settings are kept.</div>
         </div>
 
+        <!-- Where the books live; acts at once (it has its own confirm) -->
+        <div class="settings-section">
+          <h2>Books folder</h2>
+          <div class="data-folder-row">
+            <code id="dataFolderPath" class="data-folder-path"></code>
+            <button type="button" id="dataFolderChoose" onclick="chooseDataFolder(this)">Choose…</button>
+          </div>
+          <div id="dataFolderNote" class="settings-note">Your prompts, system rules, and projects, as Markdown files. Pick a folder in your Obsidian vault to work on the same files there.</div>
+          <button type="button" id="dataFolderReset" class="link-btn data-folder-reset hidden" onclick="resetDataFolder()">Use the app folder again</button>
+        </div>
+
         <!-- OpenRouter API Key section -->
         <div class="settings-section">
           <h2>OpenRouter API Key</h2>

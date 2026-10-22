@@ -9,6 +9,69 @@ fork.
 
 ---
 
+## 2026-10-22: Books folder: keep your books anywhere
+
+One commit (`2915ca0`). **Files:** `app/app.py`, `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`, `.gitignore`.
+
+**Why:** The books lived inside the app's own folder. With documents now
+Markdown files, an author can keep them in an Obsidian vault and work on
+the same files in both programs, but only if the app can use a folder of
+their choice.
+
+**What moves and what stays:**
+
+- **Books (these move):** `Global/prompts`, `Global/system`, their menu
+  `Global/state.json`, and all of `Projects/`. Inside the chosen folder,
+  they keep the same layout (`Global/…` and `Projects/…`).
+- **App settings (these stay with the app):** `app_state.json`, the API key
+  (`config.json`), the model lists, and the OpenRouter price list. The
+  shipped sample project also stays, because new projects copy its menu.
+- **In the code:** `APP_ROOT` is the app folder. `set_data_root(root)`
+  repoints `LIBRARY_DIR`, `GLOBAL_STATE`, and `PROJECTS_DIR`. All routes read
+  these at call time, so a switch applies at once, with no restart.
+
+**How the author picks the folder:**
+
+- **The setting:** Settings has a new **Books folder** section. It shows the
+  current path and has a **Choose…** button.
+- **The picker:** a web page cannot see real paths on the computer, so
+  `POST /choose_data_folder` makes the server open the Mac "Choose folder"
+  window (`osascript … choose folder`). On a system without `osascript`, it
+  answers `no-picker`, and the page asks for a typed path, which
+  `POST /folder_info` checks.
+- **If the folder has no books yet,** the page asks "Copy your books to … and
+  use them from there? The originals stay where they are, as a backup."
+- **If it already has books** (a `Projects/` folder or `Global/state.json`),
+  the page asks "… already has books. Use them?"
+- `POST /set_data_folder {path, copy}` then does the work:
+  - It copies the books (not app settings, not temp files) when asked.
+  - It saves the choice in `data_folder.json` at the app root. This file is
+    git-ignored.
+  - It switches the paths.
+  - It opens a project that exists in the new place, and trims the recent
+    list.
+- **Switching back:** "Use the app folder again" switches back to the app
+  folder, and removes `data_folder.json`.
+
+**Safety:**
+
+- **Refused folders:** a folder inside the current books (copying into
+  itself), a folder that does not exist, a folder the app cannot write to,
+  and copying into a folder that already has books.
+- **A missing folder at start:** if the chosen folder is missing (for
+  example, an unplugged drive), the app uses the app folder and shows
+  "Your books folder is missing: …".
+
+**How to check:**
+
+1. Settings → Books folder → **Choose…** → pick an empty folder → confirm.
+2. The folder now has `Global/` and `Projects/` with your `.md` files.
+3. A document added there in Obsidian appears in the sidebar when you come
+   back to the app.
+
+---
+
 ## 2026-10-22: Documents are Markdown files
 
 Three commits:
