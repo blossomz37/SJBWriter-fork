@@ -9,6 +9,60 @@ fork.
 
 ---
 
+## 2026-10-22: Trash window with Restore
+
+One commit (`b8dd00f`). **Files:** `app/app.py`, `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`.
+
+**Why:** Deletes already went to hidden `.trash` folders, not to nowhere. But
+there was no way back in the app. Moving a file back by hand did not help
+either, because the sidebar list lives in `state.json`, so the document stayed
+invisible.
+
+**How it works:**
+
+- **Where to find it:** the project **⋯** menu has a new item, **Trash…**. It
+  opens a window like Version history (× button, Esc, or a backdrop click
+  closes it).
+- **What it lists:** deleted documents from the open project (Writing and
+  Background), deleted AI setup files (System and Prompts), and deleted
+  projects. Newest first. Each row shows the title, where it came from, the
+  delete date, and a **Restore** button.
+- **Restore a document:**
+  - The file goes back to its section folder.
+  - Its sidebar entry comes back **inside the folder it was in**. If that
+    folder is gone, it goes to the top level.
+  - If a new document took the same file name, the restored one gets a free
+    name (`name-copy.json`), so nothing is overwritten.
+  - The word count is filled in again.
+- **Restore a project:** the folder goes back to `Projects/`, under a free
+  name if the old one is taken, and the project list refreshes.
+- **Remembering the folder:** when a document is deleted, the app now writes a
+  small note in a hidden `.trash/.index.json` (trash name → original file
+  name and folder). Items deleted before this change have no note. They still
+  restore, at the top level.
+- **Empty trash:** deletes everything the window lists, for good. It asks
+  first ("Delete N items forever? You cannot undo this."). The button is off
+  when the trash is empty.
+- **New routes:** `GET /trash` (the list), `POST /restore_trash`,
+  `POST /empty_trash`. Trash names are checked like every other name, so a
+  request cannot reach outside the data folders.
+
+**Not covered:** trash from projects other than the open one does not show.
+Open that project to see its trash. Version history of a deleted document
+stays in `.history` and reconnects when the document comes back under its old
+name.
+
+**How to check:**
+
+1. Delete a document that sits inside a folder.
+2. Open **⋯ → Trash…**. The document is listed with today's date.
+3. Click **Restore**. It is back in the same folder, with its text and word
+   count.
+4. Delete a project, then restore it from the same window.
+
+---
+
 ## 2026-10-22: Wishlist batch: windows, AI on/off, web search, duplicate
 
 Four commits. **Files:** `app/app.py`, `app/static/script.js`,

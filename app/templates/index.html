@@ -309,6 +309,20 @@
   </div>
 </div>
 
+<!-- ===================== TRASH MODAL (project menu) ===================== -->
+<div id="trashModal" class="modal hidden">
+  <div class="modal-content trash-content">
+    <button type="button" class="icon-btn ghost-btn modal-close tip-end" onclick="closeTrash()" data-tip="Close (Esc)" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    <h2>Trash</h2>
+    <p id="trashHint" class="trash-hint"></p>
+    <div id="trashList" class="trash-list"></div>
+    <div class="modal-actions">
+      <button type="button" id="trashEmptyBtn" class="danger-btn" onclick="emptyTrash()" disabled>Empty trash</button>
+      <button type="button" onclick="closeTrash()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Exit button shown only in zen mode -->
 <button type="button" id="zenExit" class="icon-btn ghost-btn zen-exit tip-end" onclick="setZen(false)" data-tip="Exit zen (Esc)" aria-label="Exit zen mode"><svg class="icon" aria-hidden="true"><use href="#i-minimize-2"/></svg></button>
 
