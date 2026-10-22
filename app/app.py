@@ -2030,6 +2030,52 @@ def api_delete_folder():
     })
 
 
+# ----- OPENROUTER MODEL CHECK -----
+OPENROUTER_CATALOG = os.path.join(GLOBAL_DIR, "openrouter_models.json")
+
+
+@app.route('/check_openrouter_models', methods=['POST'])
+def api_check_openrouter_models():
+    """Fetch OpenRouter's live model list, keep a compact copy, and report on the user's models."""
+    try:
+        response = requests.get("https://openrouter.ai/api/v1/models", timeout=20)
+        response.raise_for_status()
+        live = response.json().get("data", [])
+    except Exception as e:
+        return jsonify({"error": f"Could not reach OpenRouter: {e}"}), 502
+
+    catalog = {
+        m["id"]: {
+            "name": m.get("name"),
+            "context": m.get("context_length"),
+            "expires": m.get("expiration_date"),
+            "reasoning": m.get("reasoning"),
+            "temperature": "temperature" in (m.get("supported_parameters") or [])
+        }
+        for m in live if m.get("id")
+    }
+    checked_at = datetime.now().isoformat(timespec="seconds")
+    save_json(OPENROUTER_CATALOG, {"checked_at": checked_at, "models": catalog})
+
+    report = []
+    for model in (load_model_list() or {}).get("openrouter", []):
+        info = catalog.get(model.get("id"))
+        report.append({
+            "id": model.get("id"),
+            "name": model.get("name") or model.get("id"),
+            "status": "gone" if not info else ("leaving" if info.get("expires") else "available"),
+            "expires": info.get("expires") if info else None
+        })
+
+    return jsonify({"checked_at": checked_at, "total": len(catalog), "models": report})
+
+
+@app.route('/openrouter_catalog', methods=['GET'])
+def api_openrouter_catalog():
+    """The last check's copy of OpenRouter's model list (empty before the first check)."""
+    return jsonify(load_json(OPENROUTER_CATALOG) or {})
+
+
 # ----- MOVE A FILE TO ANOTHER SECTION -----
 
 @app.route('/move_file_section', methods=['POST'])

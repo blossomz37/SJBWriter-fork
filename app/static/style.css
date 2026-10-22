@@ -2400,3 +2400,68 @@ body.is-resizing .ai-panel {
 .ai-generation + .ai-markers {
   margin-top: 0;
 }
+
+
+/* ===================== OPENROUTER MODEL CHECK ===================== */
+.model-check {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--surface);
+  font-size: 13px;
+  line-height: 1.45;
+  flex-shrink: 0;
+}
+
+.model-check p {
+  margin: 2px 0;
+}
+
+.model-check-gone {
+  color: #dc2626;
+}
+
+.model-check-leaving {
+  color: #b45309;
+}
+
+.model-check-ok {
+  color: var(--text-muted);
+}
+
+body.mode-dark .model-check-gone {
+  color: #f87171;
+}
+
+body.mode-dark .model-check-leaving {
+  color: #fbbf24;
+}
+
+/* Badge on a model row in Manage Models */
+.model-flag {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.model-flag-gone {
+  background-color: color-mix(in srgb, #dc2626 14%, transparent);
+  color: #dc2626;
+}
+
+.model-flag-leaving {
+  background-color: color-mix(in srgb, #d97706 16%, transparent);
+  color: #b45309;
+}
+
+body.mode-dark .model-flag-gone {
+  color: #f87171;
+}
+
+body.mode-dark .model-flag-leaving {
+  color: #fbbf24;
+}

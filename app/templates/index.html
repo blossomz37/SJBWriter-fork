@@ -469,7 +469,14 @@
           + Add Model
         </button>
 
+        <button type="button" onclick="checkOpenRouterModels(this)" title="Compare your models with OpenRouter's current list">
+          Check OpenRouter
+        </button>
+
       </div>
+
+      <!-- Result of the last OpenRouter check -->
+      <div id="modelCheckSummary" class="model-check hidden"></div>
 
       <div id="modelLabelFilters"></div>
       <input
