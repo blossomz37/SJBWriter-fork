@@ -278,6 +278,12 @@ async function askConfirm(title, message = "", options = {}) {
   return (await openAsk({ title, message, ...options })) === true;
 }
 
+// Help pages (app/static/help/) open in their own tab, so the writing stays put
+function openHelp() {
+  window.open("/static/help/index.html", "_blank", "noopener");
+}
+
+
 // =====================
 // MODALS: × button, Esc, or a click on the backdrop closes them
 // =====================
