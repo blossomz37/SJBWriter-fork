@@ -1189,16 +1189,14 @@ async function moveModelToPosition(
 
 
 function openVisualPanel() {
-  document.getElementById("settingsMainLayout").classList.add("hidden");
-  document.getElementById("settingsVisualView").classList.remove("hidden");
   loadVisualSettingsIntoUI();
+  document.getElementById("visualModal").classList.remove("hidden");
 }
 
 function closeVisualPanel() {
   const { mode, accent } = savedAppearance();
   applyAppearance(mode, accent);
-  document.getElementById("settingsVisualView").classList.add("hidden");
-  document.getElementById("settingsMainLayout").classList.remove("hidden");
+  document.getElementById("visualModal").classList.add("hidden");
 }
 
 async function openModelsPanel() {
@@ -1518,8 +1516,13 @@ function toggleProjectMenu(e) {
     menu.remove();
   };
 
+  const duplicateProjectItem = document.createElement("div");
+  duplicateProjectItem.textContent = "Duplicate Project";
+  duplicateProjectItem.onclick = () => duplicateProject();
+
   menu.appendChild(create);
   menu.appendChild(rename);
+  menu.appendChild(duplicateProjectItem);
   menu.appendChild(del);
 
   document.body.appendChild(menu);
@@ -3306,8 +3309,13 @@ function toggleFolderMenu(
     menu.remove();
   };
 
+  const duplicateFolder = document.createElement('div');
+  duplicateFolder.textContent = "Duplicate Folder";
+  duplicateFolder.onclick = () => duplicateFolderItem(section, folder.id);
+
   menu.appendChild(addFile);
   menu.appendChild(rename);
+  menu.appendChild(duplicateFolder);
   menu.appendChild(del);
 
   document.body.appendChild(menu);
@@ -3732,7 +3740,12 @@ function toggleMenu(row, section, filename) {
   history.textContent = "Version history…";
   history.onclick = () => openHistory(section, filename);
 
+  const duplicate = document.createElement('div');
+  duplicate.textContent = "Duplicate";
+  duplicate.onclick = () => duplicateDocument(section, filename);
+
   menu.appendChild(rename);
+  menu.appendChild(duplicate);
   menu.appendChild(history);
   menu.appendChild(del);
 
@@ -4489,7 +4502,9 @@ function generationSettings() {
   const reasoning = appState.reasoningEffort || "default";
   return {
     temperature,
-    reasoning: reasoning === "default" ? null : reasoning
+    reasoning: reasoning === "default" ? null : reasoning,
+    webSearch: Boolean(appState.webSearch),
+    webMaxResults: appState.webMaxResults ?? 5
   };
 }
 
@@ -4500,12 +4515,18 @@ function showTemperature(value) {
 function saveGenerationSettings() {
   const temperature = Number(document.getElementById("temperatureInput").value);
   const reasoningEffort = document.getElementById("reasoningSelect").value;
-  Object.assign(state.app_state, { temperature, reasoningEffort });
+  const webSearch = document.getElementById("webSearchToggle").checked;
+  const maxField = document.getElementById("webMaxResults");
+  const webMaxResults = Math.min(10, Math.max(1, Math.round(Number(maxField.value) || 5)));
+  document.getElementById("aiGeneration").classList.toggle("web-off", !webSearch);
+
+  const values = { temperature, reasoningEffort, webSearch, webMaxResults };
+  Object.assign(state.app_state, values);
   clearTimeout(generationSaveTimer);
   generationSaveTimer = setTimeout(() => fetch('/save_app_state', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ temperature, reasoningEffort })
+    body: JSON.stringify(values)
   }), 300);
 }
 
@@ -4561,6 +4582,18 @@ function initGenerationPanel() {
     saveGenerationSettings();
   });
   reasoning.addEventListener("change", saveGenerationSettings);
+
+  const web = document.getElementById("webSearchToggle");
+  const maxField = document.getElementById("webMaxResults");
+  web.checked = Boolean(state.app_state.webSearch);
+  maxField.value = state.app_state.webMaxResults ?? 5;
+  details.classList.toggle("web-off", !web.checked);
+  web.addEventListener("change", saveGenerationSettings);
+  maxField.addEventListener("input", saveGenerationSettings);
+  // Show the corrected number once the writer leaves the field
+  maxField.addEventListener("change", () => {
+    maxField.value = state.app_state.webMaxResults;
+  });
   details.addEventListener("toggle", () => writePref("sjb_generation_open", details.open));
 }
 
@@ -4624,6 +4657,20 @@ function initMarkersPanel() {
 
 
 // =====================
+// AI ON/OFF (Settings → AI features): off = a plain document editor
+// =====================
+
+function aiEnabled() {
+  return state.app_state?.aiEnabled !== false;
+}
+
+function applyAiEnabled() {
+  document.body.classList.toggle("ai-off", !aiEnabled());
+  fitToolbars();
+}
+
+
+// =====================
 // AI SETUP PANEL (System + Prompts, on the right)
 // =====================
 
@@ -4643,6 +4690,7 @@ function editorWidth() {
 }
 
 function toggleAiPanel() {
+  if (!aiEnabled()) return;
   const opening = !document.body.classList.contains("ai-panel-open");
   if (!opening) {
     setAiPanelOpen(false);
@@ -4701,6 +4749,46 @@ function updateAiSummary() {
   document.getElementById("aiSummaryChip")
     .classList.toggle("is-active", rules > 0 || Boolean(selected.prompt));
   fitToolbars();
+}
+
+
+// =====================
+// DUPLICATE (document, folder, project)
+// =====================
+
+async function postJSON(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return { ok: res.ok, data: await res.json() };
+}
+
+async function duplicateDocument(section, filename) {
+  if (currentFile.section === section && currentFile.filename === filename && isDirty) {
+    await saveCurrentFile();
+  }
+  const { ok, data } = await postJSON('/duplicate_item', { section, filename });
+  if (!ok) return showToast(data.error || "Could not duplicate");
+  await loadAll();
+  showToast(`Duplicated as "${data.title}".`, "info");
+}
+
+async function duplicateFolderItem(section, folderId) {
+  if (isDirty) await saveCurrentFile();
+  const { ok, data } = await postJSON('/duplicate_folder', { section, folder_id: folderId });
+  if (!ok) return showToast(data.error || "Could not duplicate the folder");
+  await loadAll();
+  showToast(`Duplicated as "${data.title}".`, "info");
+}
+
+async function duplicateProject() {
+  if (isDirty) await saveCurrentFile();
+  const { ok, data } = await postJSON('/duplicate_project', { project: currentProject });
+  if (!ok) return showToast(data.error || "Could not duplicate the project");
+  await loadProjects();
+  showToast(`Duplicated as "${data.title}". Find it in the project menu.`, "info");
 }
 
 
@@ -4832,15 +4920,37 @@ function closeHistory() {
 
 
 // =====================
+// MODALS: × button, Esc, or a click on the backdrop closes them
+// =====================
+
+const MODAL_CLOSERS = {
+  settingsModal: () => closeSettings(true),
+  historyModal: () => closeHistory(),
+  visualModal: () => closeVisualPanel()
+};
+
+function closeModal(modal) {
+  MODAL_CLOSERS[modal.id]?.();
+}
+
+document.querySelectorAll(".modal").forEach(modal => {
+  modal.addEventListener("mousedown", (e) => {
+    if (e.target === modal) closeModal(modal);
+  });
+});
+
+
+// =====================
 // KEYBOARD SHORTCUTS (⌘ on Mac, Ctrl elsewhere)
 // =====================
 // ⌘E preview (same key as Obsidian) · ⌘S save · ⌘Enter generate
 // ⌘\ sidebar · ⌘⌥\ AI setup · ⌘⇧F zen · Esc stops generation, then leaves zen
 
 document.addEventListener("keydown", (e) => {
-  if (!document.getElementById("settingsModal").classList.contains("hidden")) return;
-  if (!document.getElementById("historyModal").classList.contains("hidden")) {
-    if (e.key === "Escape") closeHistory();
+  // While a window is open, only Esc (close it) applies
+  const openModal = [...document.querySelectorAll(".modal")].find(m => !m.classList.contains("hidden"));
+  if (openModal) {
+    if (e.key === "Escape") closeModal(openModal);
     return;
   }
 
@@ -4861,7 +4971,7 @@ document.addEventListener("keydown", (e) => {
     saveCurrentFile();
   } else if (mod && !e.shiftKey && e.key === "Enter") {
     e.preventDefault();
-    if (!isGenerating) generate();
+    if (!isGenerating && aiEnabled()) generate();
   } else if (mod && !e.shiftKey && e.key === "\\") {
     e.preventDefault();
     toggleSidebar();
@@ -4947,6 +5057,14 @@ async function saveSettings() {
   }
 
 
+  state.app_state.aiEnabled = document.getElementById("aiEnabledToggle").checked;
+  applyAiEnabled();
+  await fetch('/save_app_state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ aiEnabled: state.app_state.aiEnabled })
+  });
+
   updateActiveModelDisplay();
   await updateTokenMeter();
   closeSettings();
@@ -5013,6 +5131,7 @@ function loadSettings() {
 
 function loadSettingsIntoUI() {
   document.getElementById("modelName").value = settings.modelName;
+  document.getElementById("aiEnabledToggle").checked = aiEnabled();
   document.getElementById("showWritingCounts").checked =
     state.app_state.showWritingCounts;
   document.getElementById("showBackgroundCounts").checked =
@@ -5211,6 +5330,7 @@ window.onload = async () => {
 
   setAiPanelOpen(readPref("sjb_ai_panel_open", false));
   initPanelResize();
+  applyAiEnabled();
   initGenerationPanel();
   initMarkersPanel();
   loadOpenRouterCatalog().then(() => {

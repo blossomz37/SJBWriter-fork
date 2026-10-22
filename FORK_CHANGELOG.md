@@ -9,6 +9,82 @@ fork.
 
 ---
 
+## 2026-10-22: Wishlist batch: windows, AI on/off, web search, duplicate
+
+Four commits. **Files:** `app/app.py`, `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`, and
+`app/templates/_icons.html` (Lucide `presentation`, `copy`, `globe`).
+
+### 1. Every window closes three ways; Visual layout gets its own window (`30c1985`)
+
+- **Closing windows:**
+  - Settings, Visual layout, and Version history each have a **×** button in
+    the top-right corner.
+  - **Esc** closes whichever window is open. Before, Esc did nothing in
+    Settings.
+  - A **click on the dark backdrop** also closes it.
+  - One `MODAL_CLOSERS` map routes all three to each window's own close
+    function, so closing still undoes unsaved changes: Settings cancels, and
+    Visual layout reverts its live preview.
+- **Visual layout:**
+  - It moved out of Settings into its own smaller window (`#visualModal`,
+    560 px wide).
+  - It opens from a new top-bar button with Lucide's `presentation` icon, a
+    board on a stand. Lucide has no "easel" icon.
+  - Settings no longer lists it, which declutters that window.
+
+### 2. AI features on/off (`ce9323b`)
+
+- **Settings → AI features → "Use AI features"**, on by default.
+- **Off** (`body.ai-off`) turns the app into a plain document editor:
+  - hidden: the AI dock (instruction box, chip, model picker, Generate), the
+    AI setup panel and its top-bar toggle, and the token meter
+  - disabled: ⌘Enter and ⌘⌥\\
+  - kept: all AI settings, models, rules, and prompts
+- **Saved** as `aiEnabled` in `app_state.json`.
+
+### 3. Web search (`57aaaed`)
+
+- **What the user sees:** the AI setup **Generation** block has a "Search the
+  web" checkbox (off by default) and a "Max websites" number (1–10, default
+  5). The number is faded while search is off, and saved as it changes.
+- **Sending to OpenRouter** (following OpenRouter's web search docs): when on,
+  it sends `"plugins": [{"id": "web", "max_results": N}]`.
+  - OpenAI, Anthropic, Google, and Perplexity models use their built-in
+    search. Other models use Exa.
+  - The model is asked to cite its sources as Markdown links, which render in
+    Preview.
+- **Limits:** the server caps the number at 1–10. Up to 10 results is one
+  flat price per search, and more cost extra.
+- **Ollama** requests never get the plugin.
+- **Cost note:** the block says it costs about $0.007 per search, even on free
+  models.
+
+### 4. Duplicate (`e143158`)
+
+- **Documents:** a "Duplicate" item in every document ⋯ menu, in all four
+  sections, so System rules and Prompts too.
+  - The copy is "*Title* (copy)", with the same text, and sits right after
+    the original.
+- **Folders:** "Duplicate Folder" copies the folder and every document in it,
+  including nested folders.
+  - The documents keep their titles but get new files. Only the folder's
+    title gets "(copy)".
+  - The copy sits right after the original, with a new unique folder ID.
+- **Projects:** "Duplicate Project" copies the project folder.
+  - Version history, trash, and temp files are skipped, so the copy starts
+    clean.
+  - The copy is titled "*Project* (copy)". The writer stays in the current
+    project, and a notice names the copy.
+- **Names never clash:** `name-copy`, then `name-copy-2`, `-3`, and so on, for
+  files, folder IDs, and project folders.
+- **New routes:** `/duplicate_item`, `/duplicate_folder`, `/duplicate_project`.
+- **Tested:** 14 server checks (placement, contents, unique names, a prompt,
+  a folder with 5 documents, a project with skipped history, a refused bad
+  project name), plus the four menu items in the browser.
+
+---
+
 ## 2026-10-22: Temperature, reasoning, and an OpenRouter model check
 
 Two commits. **Files:** `app/app.py`, `app/static/script.js`,

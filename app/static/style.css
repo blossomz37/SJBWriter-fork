@@ -2465,3 +2465,54 @@ body.mode-dark .model-flag-gone {
 body.mode-dark .model-flag-leaving {
   color: #fbbf24;
 }
+
+
+/* ===================== MODAL CLOSE + VISUAL LAYOUT MODAL ===================== */
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+}
+
+/* Visual layout: a smaller window that fits its content */
+.visual-content {
+  width: min(560px, 92vw);
+  height: auto;
+}
+
+
+/* ===================== AI OFF: plain document editor ===================== */
+body.ai-off .bottom,
+body.ai-off .ai-panel,
+body.ai-off #aiPanelToggle,
+body.ai-off #tokenMeter {
+  display: none !important;
+}
+
+.settings-section .settings-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 14px;
+  opacity: 1;
+}
+
+
+/* Web search fields in the Generation block */
+.generation-web {
+  margin-top: 10px;
+}
+
+.web-max input {
+  width: 64px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: right;
+}
+
+.ai-generation.web-off .web-max {
+  opacity: 0.5;
+}

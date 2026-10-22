@@ -490,6 +490,17 @@ def generation_options(settings):
     effort = settings.get("reasoning")
     return temperature, (effort if effort in REASONING_EFFORTS else None)
 
+
+def web_search_plugin(settings):
+    """OpenRouter's web plugin when search is on: 1-10 results (10 is the per-search price cap)."""
+    if not settings.get("webSearch"):
+        return None
+    try:
+        max_results = int(settings.get("webMaxResults") or 5)
+    except (TypeError, ValueError):
+        max_results = 5
+    return {"id": "web", "max_results": min(10, max(1, max_results))}
+
 def call_openrouter(prompt, settings):
     def get_api_key():
         config_path = os.path.join(GLOBAL_DIR, "config.json")
@@ -536,6 +547,11 @@ def call_openrouter(prompt, settings):
         data["temperature"] = temperature
     if effort:
         data["reasoning"] = {"effort": effort}
+
+    # Web search (OpenRouter plugin; billed per search, even on free models)
+    web = web_search_plugin(settings)
+    if web:
+        data["plugins"] = [web]
 
 
     try:
@@ -761,7 +777,9 @@ def api_generate():
     model_settings = {
         "modelName": model_name,
         "temperature": client_settings.get("temperature"),
-        "reasoning": client_settings.get("reasoning")
+        "reasoning": client_settings.get("reasoning"),
+        "webSearch": client_settings.get("webSearch"),
+        "webMaxResults": client_settings.get("webMaxResults")
     }
 
     if model_source == "openrouter":
@@ -2028,6 +2046,141 @@ def api_delete_folder():
     return jsonify({
         "status": "deleted"
     })
+
+
+# ----- DUPLICATE A DOCUMENT, FOLDER, OR PROJECT -----
+
+def free_name(exists, stem):
+    """stem-copy, then stem-copy-2, -3 ... whichever is free."""
+    candidate, n = f"{stem}-copy", 1
+    while exists(candidate):
+        n += 1
+        candidate = f"{stem}-copy-{n}"
+    return candidate
+
+
+def copy_document(section, filename, mark_copy=True):
+    """Copy one document file; returns its new sidebar entry."""
+    base = get_base_path(section)
+    data = load_json(os.path.join(base, filename)) or {}
+    stem = filename[:-5] if filename.endswith(".json") else filename
+    new_stem = free_name(lambda c: os.path.exists(os.path.join(base, f"{c}.json")), stem)
+    title = data.get("title") or stem
+    if mark_copy:
+        title = f"{title} (copy)"
+    content = data.get("content", "")
+    save_json(os.path.join(base, f"{new_stem}.json"), {
+        "id": new_stem,
+        "title": title,
+        "content": content,
+        "wordCount": count_words(content)
+    })
+    return {"type": "file", "filename": f"{new_stem}.json", "title": title, "wordCount": count_words(content)}
+
+
+def folder_ids(items):
+    ids = set()
+    for item in items or []:
+        if isinstance(item, dict) and item.get("type") == "folder":
+            ids.add(item.get("id"))
+            ids |= folder_ids(item.get("items"))
+    return ids
+
+
+def copy_folder(section, folder, taken_ids):
+    """Copy a folder and everything in it; documents inside keep their titles."""
+    new_id = free_name(lambda c: c in taken_ids, folder.get("id") or "folder")
+    taken_ids.add(new_id)
+    items = []
+    for item in folder.get("items", []):
+        if isinstance(item, dict) and item.get("type") == "folder":
+            items.append(copy_folder(section, item, taken_ids))
+        else:
+            filename = item if isinstance(item, str) else item.get("filename")
+            if filename and os.path.exists(os.path.join(get_base_path(section), filename)):
+                items.append(copy_document(section, filename, mark_copy=False))
+    return {
+        "type": "folder",
+        "id": new_id,
+        "title": folder.get("title"),
+        "collapsed": folder.get("collapsed", False),
+        "items": items
+    }
+
+
+def insert_after_folder(items, folder_id, entry):
+    for i, item in enumerate(items):
+        if isinstance(item, dict) and item.get("type") == "folder":
+            if item.get("id") == folder_id:
+                items.insert(i + 1, entry)
+                return True
+            if insert_after_folder(item.get("items", []), folder_id, entry):
+                return True
+    return False
+
+
+@app.route('/duplicate_item', methods=['POST'])
+def api_duplicate_item():
+    ensure_structure()
+    data = request.json
+    section = data.get("section")
+    filename = data.get("filename")
+
+    if not section or not filename:
+        return jsonify({"error": "Missing data"}), 400
+    if not os.path.exists(os.path.join(get_base_path(section), filename)):
+        return jsonify({"error": "File not found"}), 404
+
+    entry = copy_document(section, filename)
+    state_file = get_state_file(section)
+    state = load_json(state_file)
+    insert_into_tree(state.setdefault(section, []), entry, target_filename=filename, position="after")
+    save_json(state_file, state)
+    return jsonify({"status": "duplicated", "filename": entry["filename"], "title": entry["title"]})
+
+
+@app.route('/duplicate_folder', methods=['POST'])
+def api_duplicate_folder():
+    ensure_structure()
+    data = request.json
+    section = data.get("section")
+    folder_id = data.get("folder_id")
+
+    if not section or not folder_id:
+        return jsonify({"error": "Missing data"}), 400
+
+    state_file = get_state_file(section)
+    state = load_json(state_file)
+    tree = state.setdefault(section, [])
+    folder = find_folder(tree, folder_id)
+    if not folder:
+        return jsonify({"error": "Folder not found"}), 404
+
+    copy = copy_folder(section, folder, folder_ids(tree))
+    copy["title"] = f"{folder.get('title')} (copy)"
+    insert_after_folder(tree, folder_id, copy)
+    save_json(state_file, state)
+    return jsonify({"status": "duplicated", "folder_id": copy["id"], "title": copy["title"]})
+
+
+@app.route('/duplicate_project', methods=['POST'])
+def api_duplicate_project():
+    data = request.json
+    project = data.get("project")
+    src = os.path.join(PROJECTS_DIR, project or "")
+
+    if not project or not os.path.isdir(src):
+        return jsonify({"error": "Project not found"}), 404
+
+    new_id = free_name(lambda c: os.path.exists(os.path.join(PROJECTS_DIR, c)), project)
+    dest = os.path.join(PROJECTS_DIR, new_id)
+    # The copy starts clean: no version history, trash, or temp files
+    shutil.copytree(src, dest, ignore=shutil.ignore_patterns(".history", ".trash", ".tmp-*"))
+
+    meta = load_json(os.path.join(src, "project.json")) or {}
+    title = f"{meta.get('title') or project} (copy)"
+    save_json(os.path.join(dest, "project.json"), {**meta, "id": new_id, "title": title})
+    return jsonify({"status": "duplicated", "project": new_id, "title": title})
 
 
 # ----- OPENROUTER MODEL CHECK -----
