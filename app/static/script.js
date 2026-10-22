@@ -4241,7 +4241,9 @@ const PANEL_SIZES = {
   sidebar: { min: 200, max: 520, cssVar: "--sidebar-w", pref: "sjb_sidebar_w" },
   ai: { min: 240, max: 520, cssVar: "--ai-panel-w", pref: "sjb_ai_panel_w" }
 };
-const EDITOR_MIN_WIDTH = 360;
+// The writing area never gets narrower than this (about 50 characters a line);
+// below it, the AI setup panel tucks itself away
+const EDITOR_MIN_WIDTH = 440;
 
 function applyPanelWidth(name, px) {
   const { cssVar } = PANEL_SIZES[name];
@@ -4339,7 +4341,10 @@ function fitToolbars() {
 }
 
 // Re-fit whenever the writing area changes width (window, sidebar, AI panel)
-new ResizeObserver(fitToolbars).observe(document.querySelector(".right"));
+new ResizeObserver(() => {
+  keepEditorRoom();
+  fitToolbars();
+}).observe(document.querySelector(".right"));
 
 function openOverflowMenu(button, name) {
   document.querySelectorAll(".file-menu").forEach(m => m.remove());
@@ -4441,15 +4446,59 @@ function initMarkersPanel() {
 // AI SETUP PANEL (System + Prompts, on the right)
 // =====================
 
-function setAiPanelOpen(open) {
+// An automatic hide (no room) does not change the writer's saved preference
+function setAiPanelOpen(open, { auto = false } = {}) {
   document.body.classList.toggle("ai-panel-open", open);
   document.getElementById("aiSummaryChip").setAttribute("aria-expanded", String(open));
   document.getElementById("aiPanelToggle").setAttribute("aria-pressed", String(open));
-  writePref("sjb_ai_panel_open", open);
+  if (!auto) {
+    writePref("sjb_ai_panel_open", open);
+    aiPanelAutoHidden = false;
+  }
+}
+
+function editorWidth() {
+  return document.querySelector(".right").getBoundingClientRect().width;
 }
 
 function toggleAiPanel() {
-  setAiPanelOpen(!document.body.classList.contains("ai-panel-open"));
+  const opening = !document.body.classList.contains("ai-panel-open");
+  if (!opening) {
+    setAiPanelOpen(false);
+    return;
+  }
+
+  // Open, then check the editor still has its minimum width
+  setAiPanelOpen(true, { auto: true });
+  if (editorWidth() < EDITOR_MIN_WIDTH) {
+    setAiPanelOpen(false, { auto: true });
+    showToast("Not enough room for AI setup. Widen the window or hide the sidebar (⌘\\).", "info");
+    return;
+  }
+  setAiPanelOpen(true);
+}
+
+let aiPanelAutoHidden = false;
+let aiPanelLastWidth = 320;
+let editorRoomNoticeShown = false;
+
+// Hide the AI panel when the editor gets too narrow; bring it back when there is room
+function keepEditorRoom() {
+  const open = document.body.classList.contains("ai-panel-open");
+  const width = editorWidth();
+
+  if (open && width < EDITOR_MIN_WIDTH) {
+    aiPanelLastWidth = document.querySelector(".ai-panel").getBoundingClientRect().width || aiPanelLastWidth;
+    setAiPanelOpen(false, { auto: true });
+    aiPanelAutoHidden = true;
+    if (appReady && !editorRoomNoticeShown) {
+      editorRoomNoticeShown = true;
+      showToast("AI setup is tucked away to give the editor room. It comes back when the window is wider.", "info");
+    }
+  } else if (!open && aiPanelAutoHidden && width - aiPanelLastWidth >= EDITOR_MIN_WIDTH) {
+    setAiPanelOpen(true, { auto: true });
+    aiPanelAutoHidden = false;
+  }
 }
 
 // "2 rules · Prompt: EPBM 3": what the AI will get, even with the panel closed
