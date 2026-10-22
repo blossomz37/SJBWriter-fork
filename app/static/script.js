@@ -4380,6 +4380,64 @@ function openOverflowMenu(button, name) {
 
 
 // =====================
+// AI OUTPUT MARKERS (in the AI setup panel; saved as you type)
+// =====================
+
+let markersSaveTimer = null;
+
+function markerFields() {
+  return {
+    toggle: document.getElementById("showOutputMarkers"),
+    before: document.getElementById("outputMarkerBefore"),
+    after: document.getElementById("outputMarkerAfter")
+  };
+}
+
+function showMarkerState() {
+  const { toggle } = markerFields();
+  document.getElementById("aiMarkers").classList.toggle("is-off", !toggle.checked);
+}
+
+async function saveMarkers() {
+  const { toggle, before, after } = markerFields();
+  const markers = {
+    showOutputMarkers: toggle.checked,
+    outputMarkerBefore: before.value,
+    outputMarkerAfter: after.value
+  };
+  Object.assign(state.app_state, markers);
+  await fetch('/save_app_state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(markers)
+  });
+}
+
+function initMarkersPanel() {
+  const { toggle, before, after } = markerFields();
+  const details = document.getElementById("aiMarkers");
+
+  toggle.checked = state.app_state.showOutputMarkers !== false;
+  before.value = state.app_state.outputMarkerBefore ?? DEFAULT_MARKER_BEFORE;
+  after.value = state.app_state.outputMarkerAfter ?? DEFAULT_MARKER_AFTER;
+  details.open = readPref("sjb_markers_open", false);
+  showMarkerState();
+
+  toggle.addEventListener("change", () => {
+    showMarkerState();
+    saveMarkers();
+  });
+
+  [before, after].forEach(field => field.addEventListener("input", () => {
+    clearTimeout(markersSaveTimer);
+    markersSaveTimer = setTimeout(saveMarkers, 400);
+  }));
+
+  details.addEventListener("toggle", () => writePref("sjb_markers_open", details.open));
+}
+
+
+// =====================
 // AI SETUP PANEL (System + Prompts, on the right)
 // =====================
 
@@ -4658,17 +4716,6 @@ async function saveSettings() {
     });
   }
 
-  const markers = {
-    showOutputMarkers: document.getElementById("showOutputMarkers").checked,
-    outputMarkerBefore: document.getElementById("outputMarkerBefore").value,
-    outputMarkerAfter: document.getElementById("outputMarkerAfter").value
-  };
-  Object.assign(state.app_state, markers);
-  await fetch('/save_app_state', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(markers)
-  });
 
   updateActiveModelDisplay();
   await updateTokenMeter();
@@ -4748,12 +4795,6 @@ function loadSettingsIntoUI() {
     state.app_state.showFolderTotals;
   document.getElementById("sidebarFontSize").value =
     state.app_state.sidebarFontSize || "13px";
-  document.getElementById("showOutputMarkers").checked =
-    state.app_state.showOutputMarkers !== false;
-  document.getElementById("outputMarkerBefore").value =
-    state.app_state.outputMarkerBefore ?? DEFAULT_MARKER_BEFORE;
-  document.getElementById("outputMarkerAfter").value =
-    state.app_state.outputMarkerAfter ?? DEFAULT_MARKER_AFTER;
 }
 
 function loadVisualSettingsIntoUI() {
@@ -4940,6 +4981,7 @@ window.onload = async () => {
 
   setAiPanelOpen(readPref("sjb_ai_panel_open", false));
   initPanelResize();
+  initMarkersPanel();
   applySectionOrder();
   applySectionFolds();
   updateSortButtons();
