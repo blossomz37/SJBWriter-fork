@@ -93,6 +93,13 @@ python3 -m unittest discover tests
 
 Each test runs the app on a small, made-up library in a temporary folder, so your own books are never touched. Calls to OpenRouter and Ollama are faked, so the tests never spend credits.
 
+An optional browser smoke test clicks through the main features in a real browser. It needs Node and Playwright:
+
+```bash
+npm install --no-save playwright && npx playwright install chromium
+node tests/browser/smoke.mjs
+```
+
 ### Configuring AI Models
 
 You can explore the application without configuring AI assistance.
