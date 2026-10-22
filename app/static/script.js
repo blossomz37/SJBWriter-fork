@@ -1520,10 +1520,15 @@ function toggleProjectMenu(e) {
   duplicateProjectItem.textContent = "Duplicate Project";
   duplicateProjectItem.onclick = () => duplicateProject();
 
+  const trashItem = document.createElement("div");
+  trashItem.textContent = "Trash…";
+  trashItem.onclick = () => openTrash();
+
   menu.appendChild(create);
   menu.appendChild(rename);
   menu.appendChild(duplicateProjectItem);
   menu.appendChild(del);
+  menu.appendChild(trashItem);
 
   document.body.appendChild(menu);
 
@@ -4920,13 +4925,141 @@ function closeHistory() {
 
 
 // =====================
+// TRASH: deleted documents and projects, with Restore
+// =====================
+
+const TRASH_PLACES = {
+  writing: "Writing",
+  background: "Background",
+  system: "AI setup · System",
+  prompts: "AI setup · Prompts"
+};
+
+let trashItems = [];
+
+async function openTrash() {
+  document.getElementById("trashModal").classList.remove("hidden");
+  await loadTrash();
+}
+
+async function loadTrash() {
+  const data = await (await fetch('/trash')).json();
+  trashItems = data.items || [];
+
+  const projectTitle =
+    (projects || []).find(p => p.id === data.project)?.title || data.project;
+  document.getElementById("trashHint").textContent =
+    `Deleted documents from “${projectTitle}” and the AI setup, plus deleted projects. Restore puts an item back where it was.`;
+
+  const list = document.getElementById("trashList");
+  list.innerHTML = "";
+  document.getElementById("trashEmptyBtn").disabled = trashItems.length === 0;
+
+  if (trashItems.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "history-empty";
+    empty.textContent = "The trash is empty.";
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const item of trashItems) {
+    const row = document.createElement("div");
+    row.className = "trash-row";
+
+    const icon = document.createElement("span");
+    icon.className = "tree-icon";
+    icon.innerHTML = iconSvg(
+      item.kind === "project" ? "book"
+        : (item.section === "system" || item.section === "prompts") ? "sticky-note"
+        : "file-text"
+    );
+
+    const text = document.createElement("div");
+    text.className = "trash-text";
+
+    const title = document.createElement("span");
+    title.className = "trash-title";
+    title.textContent = item.title;
+
+    const deleted = new Date(item.deleted);
+    const meta = document.createElement("span");
+    meta.className = "history-meta";
+    meta.textContent = [
+      item.kind === "project" ? "Project" : TRASH_PLACES[item.section],
+      "deleted " + deleted.toLocaleString([], {
+        month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+      }),
+      timeAgo(deleted)
+    ].join(" · ");
+
+    text.append(title, meta);
+
+    const restore = document.createElement("button");
+    restore.type = "button";
+    restore.textContent = "Restore";
+    restore.onclick = () => restoreTrashItem(item, restore);
+
+    row.append(icon, text, restore);
+    list.appendChild(row);
+  }
+}
+
+async function restoreTrashItem(item, button) {
+  button.disabled = true;
+
+  const { data } = await postJSON('/restore_trash', {
+    kind: item.kind,
+    section: item.section || undefined,
+    trash_name: item.trash_name
+  });
+
+  if (data.status !== "restored") {
+    button.disabled = false;
+    showToast(data.error || "Restore failed");
+    return;
+  }
+
+  if (item.kind === "project") {
+    await loadProjects();
+    showToast(`Restored the project “${item.title}”.`, "info");
+  } else {
+    if (isDirty) await saveCurrentFile();
+    await loadAll();
+    showToast(`Restored “${item.title}” to ${TRASH_PLACES[item.section]}.`, "info");
+  }
+
+  await loadTrash();
+}
+
+async function emptyTrash() {
+  if (trashItems.length === 0) return;
+
+  const count = trashItems.length === 1 ? "1 item" : `${trashItems.length} items`;
+  if (!confirm(`Delete ${count} forever? You cannot undo this.`)) return;
+
+  const { data } = await postJSON('/empty_trash', {});
+  if (data.status !== "emptied") {
+    showToast(data.error || "Could not empty the trash");
+    return;
+  }
+  await loadTrash();
+}
+
+function closeTrash() {
+  document.getElementById("trashModal").classList.add("hidden");
+}
+
+
+// =====================
 // MODALS: × button, Esc, or a click on the backdrop closes them
 // =====================
 
 const MODAL_CLOSERS = {
   settingsModal: () => closeSettings(true),
   historyModal: () => closeHistory(),
-  visualModal: () => closeVisualPanel()
+  visualModal: () => closeVisualPanel(),
+  trashModal: () => closeTrash()
 };
 
 function closeModal(modal) {

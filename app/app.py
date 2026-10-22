@@ -336,6 +336,53 @@ def move_to_trash(path, trash_root):
         n += 1
         dest = os.path.join(trash_root, f"{stamp}-{n}-{name}")
     shutil.move(path, dest)
+    return os.path.basename(dest)
+
+
+TRASH_NAME = re.compile(r"^(\d{8}-\d{6})(?:-\d+)?-(.+)$")
+
+
+def trash_index_path(trash_root):
+    # Hidden, so trash listings skip it
+    return os.path.join(trash_root, ".index.json")
+
+
+def load_trash_index(trash_root):
+    path = trash_index_path(trash_root)
+    return (load_json(path) or {}) if os.path.exists(path) else {}
+
+
+def remember_trash(trash_root, trash_name, info):
+    """Note where a trashed file came from, so Restore can put it back."""
+    index = load_trash_index(trash_root)
+    index[trash_name] = info
+    save_json(trash_index_path(trash_root), index)
+
+
+def forget_trash(trash_root, trash_name):
+    index = load_trash_index(trash_root)
+    if index.pop(trash_name, None) is not None:
+        save_json(trash_index_path(trash_root), index)
+
+
+def parent_folder_id(items, filename, folder_id=None):
+    """Id of the folder that holds filename; None at the top level."""
+    for item in items:
+        if isinstance(item, dict) and item.get("type") == "folder":
+            found = parent_folder_id(item.get("items", []), filename, item.get("id"))
+            if found is not False:
+                return found
+        elif (item.get("filename") if isinstance(item, dict) else item) == filename:
+            return folder_id
+    return False
+
+
+def trash_roots():
+    """Each trash folder the Trash window shows: (kind, section, path)."""
+    roots = [("file", section, os.path.join(get_base_path(section), ".trash"))
+             for section in ("writing", "background", "system", "prompts")]
+    roots.append(("project", None, os.path.join(PROJECTS_DIR, ".trash")))
+    return roots
 
 def find_file_item(items, filename):
 
@@ -1861,11 +1908,15 @@ def api_delete_item():
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
+    state = load_json(state_file)
+    folder_id = parent_folder_id(state.get(section, []), filename)
+
     # Move the file to the section's trash instead of deleting it
-    move_to_trash(file_path, os.path.join(base_path, ".trash"))
+    trash_root = os.path.join(base_path, ".trash")
+    trash_name = move_to_trash(file_path, trash_root)
+    remember_trash(trash_root, trash_name, {"filename": filename, "folder": folder_id or None})
 
     # Update state
-    state = load_json(state_file)
 
     state[section] = remove_file_from_tree(state.get(section, []), filename)
 
@@ -2392,6 +2443,130 @@ def api_restore_version():
         "content": content,
         "wordCount": word_count
     })
+
+
+# ----- TRASH -----
+
+@app.route('/trash', methods=['GET'])
+def api_trash():
+    ensure_structure()
+    items = []
+
+    for kind, section, root in trash_roots():
+        if not os.path.isdir(root):
+            continue
+        index = load_trash_index(root)
+
+        for name in os.listdir(root):
+            match = TRASH_NAME.match(name)
+            if name.startswith(".") or not match:
+                continue
+            path = os.path.join(root, name)
+            original = index.get(name, {}).get("filename") or match.group(2)
+
+            if kind == "project":
+                if not os.path.isdir(path):
+                    continue
+                meta = load_json(os.path.join(path, "project.json")) or {}
+                title = meta.get("title") or original
+            else:
+                data = load_json(path) or {}
+                title = data.get("title") or original.replace(".json", "")
+
+            items.append({
+                "kind": kind,
+                "section": section,
+                "trash_name": name,
+                "original": original,
+                "title": title,
+                "deleted": version_time(match.group(1)).isoformat()
+            })
+
+    items.sort(key=lambda i: i["trash_name"], reverse=True)
+    return jsonify({"items": items, "project": get_current_project()})
+
+
+@app.route('/restore_trash', methods=['POST'])
+def api_restore_trash():
+    ensure_structure()
+
+    data = request.json
+    kind = data.get("kind")
+    section = data.get("section")
+    trash_name = data.get("trash_name")
+
+    if not is_safe_name(trash_name) or not TRASH_NAME.match(trash_name):
+        return jsonify({"error": "Invalid trash item"}), 400
+
+    if kind == "project":
+        root = os.path.join(PROJECTS_DIR, ".trash")
+        src = os.path.join(root, trash_name)
+        if not os.path.isdir(src):
+            return jsonify({"error": "Item not found"}), 404
+
+        project = TRASH_NAME.match(trash_name).group(2)
+        if os.path.exists(os.path.join(PROJECTS_DIR, project)):
+            project = free_name(lambda c: os.path.exists(os.path.join(PROJECTS_DIR, c)), project)
+        dest = os.path.join(PROJECTS_DIR, project)
+        shutil.move(src, dest)
+
+        meta_path = os.path.join(dest, "project.json")
+        meta = load_json(meta_path) or {}
+        if meta and meta.get("id") != project:
+            save_json(meta_path, {**meta, "id": project})
+        return jsonify({"status": "restored", "project": project})
+
+    if section not in SECTIONS:
+        return jsonify({"error": "Missing data"}), 400
+
+    base_path = get_base_path(section)
+    root = os.path.join(base_path, ".trash")
+    src = os.path.join(root, trash_name)
+    if not os.path.isfile(src):
+        return jsonify({"error": "Item not found"}), 404
+
+    info = load_trash_index(root).get(trash_name, {})
+    filename = info.get("filename") or TRASH_NAME.match(trash_name).group(2)
+    if not is_safe_name(filename):
+        return jsonify({"error": "Invalid trash item"}), 400
+
+    # Never overwrite a document that took the name in the meantime
+    stem = filename[:-5] if filename.endswith(".json") else filename
+    if os.path.exists(os.path.join(base_path, f"{stem}.json")):
+        stem = free_name(lambda c: os.path.exists(os.path.join(base_path, f"{c}.json")), stem)
+    filename = f"{stem}.json"
+
+    doc = load_json(src) or {}
+    content = doc.get("content", "")
+    title = doc.get("title") or stem
+    save_json(os.path.join(base_path, filename), {
+        **doc, "id": stem, "title": title, "content": content, "wordCount": count_words(content)
+    })
+    os.remove(src)
+    forget_trash(root, trash_name)
+
+    # Back into its old folder, or the top level if that folder is gone
+    state_file = get_state_file(section)
+    state = load_json(state_file)
+    tree = state.setdefault(section, [])
+    insert_into_tree(tree, {
+        "type": "file", "filename": filename, "title": title, "wordCount": count_words(content)
+    }, folder_id=info.get("folder"))
+    save_json(state_file, state)
+
+    return jsonify({"status": "restored", "section": section, "filename": filename})
+
+
+@app.route('/empty_trash', methods=['POST'])
+def api_empty_trash():
+    """Delete for good everything the Trash window shows. The client asks first."""
+    ensure_structure()
+    removed = 0
+    for _kind, _section, root in trash_roots():
+        if os.path.isdir(root):
+            removed += len([n for n in os.listdir(root) if not n.startswith(".")])
+            shutil.rmtree(root)
+    return jsonify({"status": "emptied", "removed": removed})
 
 
 @app.route('/save_app_state', methods=['POST'])
