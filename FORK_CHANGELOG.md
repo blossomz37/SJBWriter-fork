@@ -9,6 +9,25 @@ fork.
 
 ---
 
+## 2026-10-22: Documents indented clearly under their folders
+
+**Commit:** `a1d04f1`. **Files:** `app/static/script.js`, `app/static/style.css`.
+
+- **Problem:** rows were indented by `depth × 16px`. But a folder row starts
+  with its arrow, and a file row does not. That arrow used up the indent, so a
+  folder's files lined up *under the folder's own checkbox*. They did not look
+  nested.
+- **How:**
+  - Each file row now starts with an empty `.tree-spacer`, exactly as wide as
+    a folder's arrow (16 px). Files and folders at the same depth then line up.
+  - The indent per level is the new CSS variable `--tree-indent` (18 px). Rows
+    use `margin-left: calc(var(--tree-indent) * depth)`, so children sit one
+    clear step to the right of their folder.
+- **Measured:** a folder's checkbox at x = 37, its files' checkboxes at x = 55,
+  and a top-level file at x = 37.
+
+---
+
 ## 2026-10-22: Icons for projects, folders, and documents
 
 **Commit:** `264b723`. **Files:** `app/static/script.js`,
