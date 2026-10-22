@@ -9,6 +9,68 @@ fork.
 
 ---
 
+## 2026-10-22: Max reply length and a cost estimate
+
+One commit (`915c733`). **Files:** `app/app.py`, `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`.
+
+**Why:** The author could not cap how long a reply runs, and could not see
+what a request costs on OpenRouter before sending it.
+
+**How it works:**
+
+- **Max reply length.**
+  - A new number field sits under **AI setup → Generation**, below Reasoning.
+    Empty means no limit, which was the old behavior.
+  - It is saved with the other generation settings in `app_state`.
+  - It is sent as `max_tokens` to OpenRouter and as `options.num_predict` to
+    Ollama.
+  - The server lowers it to the model's own maximum reply size when it knows
+    that size. The note under the field shows that maximum ("This model allows
+    up to 16,384").
+  - Reasoning tokens count toward the limit, and the note says so.
+- **Prices come from OpenRouter's public model list.**
+  - The "Check OpenRouter" feature already saved a small copy in
+    `Global/openrouter_models.json`. That copy now also keeps each model's
+    input and output price (dollars per token) and its maximum reply size.
+    OpenRouter's own router lists a price of -1, so that is stored as
+    "unknown".
+  - The list now **refreshes itself once a day.** When the page loads, it asks
+    for `GET /openrouter_catalog?auto=1`. The server downloads a new copy only
+    in three cases: the copy is missing, it is more than 24 hours old, or it is
+    from before prices were kept. If the download fails (no internet), the old
+    copy is used and no error shows.
+  - The refresh only runs while AI features are on. Turning AI on in Settings
+    also triggers it.
+  - Some models list cheaper rates at certain hours. The estimate uses the base
+    rate.
+- **The cost estimate** uses the same token count as the meter, and it runs
+  in the browser, with no extra request at each keystroke.
+  - **With a length limit, the status bar shows:**
+    "AI request ≈ 637 tokens · up to $0.012". That is the input, plus the
+    longest allowed reply, plus web search if it is on.
+  - **With no limit, it shows:** "· $0.0016 + reply", because the reply length
+    is open.
+  - **Other cases:** "free" for free models, "local" for Ollama, and
+    "price unknown" when the model is not in the list.
+  - **Web search** adds $0.007, which is OpenRouter's price for one search
+    (up to 10 results). Models with their own built-in search charge the
+    provider's price, and the hover text says so.
+  - **The full breakdown** shows in the meter's hover text, and on a new
+    "Cost:" line in the "What the AI will see" window. It lists the input
+    cost, the reply cost at the limit, web search, the total, and the rates
+    per million tokens. That window also shows the reply limit after the cap.
+
+**How to check:**
+
+1. Pick a paid OpenRouter model.
+2. Type 1000 in **Max reply length**. The status bar changes to
+   "up to $…".
+3. Hover over the status bar number to see the breakdown.
+4. Clear the field. The status bar changes back to "+ reply".
+
+---
+
 ## 2026-10-22: Labeled AI request, and "What the AI will see"
 
 One commit (`1cae5df`). **Files:** `app/app.py`, `app/static/script.js`,
