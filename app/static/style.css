@@ -1814,7 +1814,7 @@ body.zen .zen-exit {
 .ai-panel {
   display: none;
   flex-direction: column;
-  width: 300px;
+  width: 320px;
   flex-shrink: 0;
   min-height: 0;
   padding: 10px 8px;
@@ -1894,7 +1894,7 @@ body.ai-panel-open .ai-chip {
 
 /* Keep toasts clear of the open AI panel */
 body.ai-panel-open .toast-stack {
-  right: 316px;
+  right: 336px;
 }
 
 
@@ -2104,4 +2104,9 @@ body.zen #closeDocBtn {
 
 .tree-spacer {
   display: inline-block;
+}
+
+/* Items sit one step in, so folder arrows line up under the section name */
+.section > [id$="List"] {
+  padding-left: calc(var(--tree-indent) + 2px);
 }
