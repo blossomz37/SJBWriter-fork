@@ -9,6 +9,36 @@ fork.
 
 ---
 
+## 2026-10-22: One consistent 16 px gutter
+
+**Commit:** `0f94420`. **Files:** `app/static/style.css`, `app/static/script.js`.
+
+- **Problem:** content sat close to the window edges, and every zone used its
+  own spacing, so nothing lined up. Measured at 1440 px wide:
+  - **Left edges:** the top bar toggle at 19 px, the project icon at 8 px, the
+    section arrows at 14 px, and the status bar text at 12 px.
+  - **Right edges:** at 15–21 px.
+  - **Editor:** the toolbar started 6 px from the sidebar line, but the title
+    started at 16 px.
+- **How:**
+  - **New tokens:** `--gutter: 16px` is the space between any window or pane
+    edge and its content. `--ghost-inset: 7px` is the invisible padding plus
+    border of borderless icon buttons.
+  - **Padding uses `var(--gutter)`** in the sidebar, the AI panel, the status
+    bar, the editor toolbar, the AI dock, and the title row.
+  - **Section labels** lost their extra side padding, so they start on the
+    gutter line.
+  - **Borderless icon buttons:** for the top bar, the title row's ×, the AI
+    panel's ×, and the section sort buttons, the *icon* sits on the gutter
+    line, not the invisible button box. That uses padding of
+    `gutter − ghost-inset`, or a negative right margin.
+  - **Result:** every left and right edge measures 16 px from the window or
+    pane edge (17 px where a 1 px divider is included).
+- **Also fixed:** the token meter's short form shows **1M** instead of
+  "1049k" for models with a 1,048,576-token context.
+
+---
+
 ## 2026-10-22: Menu text sized like the sidebar
 
 **Commit:** `0f28ad4`. **File:** `app/static/style.css`.
