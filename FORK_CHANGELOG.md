@@ -9,6 +9,44 @@ fork.
 
 ---
 
+## 2026-10-22: Empty state when no document is open
+
+**Commit:** `a2aa0a2`. **Files:** `app/templates/index.html`,
+`app/static/script.js`, `app/static/style.css`, and
+`app/templates/_icons.html` (Lucide `feather` and `file-plus`).
+
+- **Why:**
+  - When no file is open, for example in a new project or after deleting the
+    last file, the editor still looked usable. But `saveCurrentFile()` returns
+    early when there is no file, so anything typed there was silently lost. AI
+    output would land there too.
+  - An empty state makes that clear, and gives an obvious next step.
+- **How:**
+  - A new `#emptyState` block holds:
+    - a feather icon in the accent color
+    - "No document open"
+    - "Choose a file in the sidebar, or start a new one."
+    - two buttons, **New writing file** (accent) and **New background note**,
+      which call the existing `createNew()`. That function already opens the
+      new file.
+    - a shortcut hint
+  - `updateEmptyState()` sets `body.no-document` when `currentFile.filename` is
+    empty. It runs with every status bar update and every sidebar re-render.
+    The class hides the title row, formatting bar, editor, preview, AI dock,
+    and the status bar's word count and reading time. The token meter stays,
+    because the chosen context still counts.
+  - **No flash on startup:** an `appReady` flag holds the empty state back
+    until startup finishes. The sidebar renders before the last file reopens,
+    so without the flag the empty state would blink.
+
+**Check:**
+
+1. Create a new project. The empty state should show.
+2. Click New writing file and give it a name. The file should open.
+3. Delete it. The empty state should return.
+
+---
+
 ## 2026-10-22: Panel toggles in the top bar
 
 **Commit:** `d7cd197`. **Files:** `app/templates/index.html`,
