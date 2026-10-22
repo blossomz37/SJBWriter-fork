@@ -45,6 +45,8 @@ def ensure_structure():
 
     project_dir = get_project_dir()
     project_meta_path = os.path.join(project_dir, "project.json")
+    # A fresh install has no project folder yet
+    os.makedirs(project_dir, exist_ok=True)
 
     if not os.path.exists(project_meta_path):
         save_json(project_meta_path, {
@@ -69,6 +71,168 @@ def ensure_structure():
 
 
 
+# ===================== MIGRATION: JSON DOCUMENTS TO MARKDOWN =====================
+# Runs once per start. Each JSON document becomes a .md file next to it, and
+# the JSON file moves to <section>/.json-backup/. Running it again does nothing.
+
+def migrate_section_folder(folder):
+    """Convert one section folder; returns {old filename: new filename}."""
+    renamed = {}
+    if not os.path.isdir(folder):
+        return renamed
+    for name in sorted(os.listdir(folder)):
+        path = os.path.join(folder, name)
+        if name.startswith(".") or not name.endswith(".json") or not os.path.isfile(path):
+            continue
+        data = load_json(path)
+        if not isinstance(data, dict) or not ("content" in data or "title" in data):
+            continue   # not a document: leave it alone
+
+        stem = doc_stem(name)
+        if os.path.exists(os.path.join(folder, doc_name(stem))):
+            stem = free_name(lambda c: os.path.exists(os.path.join(folder, doc_name(c))), stem)
+        write_doc(os.path.join(folder, doc_name(stem)), data.get("title") or stem, data.get("content") or "")
+
+        backup = os.path.join(folder, ".json-backup")
+        os.makedirs(backup, exist_ok=True)
+        dest, n = os.path.join(backup, name), 1
+        while os.path.exists(dest):
+            n += 1
+            dest = os.path.join(backup, f"{doc_stem(name)}-{n}.json")
+        shutil.move(path, dest)
+        renamed[name] = doc_name(stem)
+    return renamed
+
+
+def rename_in_tree(items, renamed):
+    result = []
+    for item in items or []:
+        if isinstance(item, str):
+            result.append(renamed.get(item, item))
+            continue
+        if isinstance(item, dict) and item.get("type") == "folder":
+            item["items"] = rename_in_tree(item.get("items"), renamed)
+        elif isinstance(item, dict) and item.get("filename") in renamed:
+            item["filename"] = renamed[item["filename"]]
+        result.append(item)
+    return result
+
+
+def migrate_state_file(state_path, folders, last_key):
+    """Convert the folders' documents and point the state file's lists at the new names."""
+    state = load_json(state_path) if os.path.exists(state_path) else None
+    changed = False
+    for section, folder in folders.items():
+        renamed = migrate_section_folder(folder)
+        if renamed and isinstance(state, dict):
+            state[section] = rename_in_tree(state.get(section, []), renamed)
+            last = state.get(last_key) or {}
+            if last.get("section") == section and last.get("filename") in renamed:
+                last["filename"] = renamed[last["filename"]]
+            changed = True
+    if changed and isinstance(state, dict):
+        save_json(state_path, state)
+
+
+def migrate_documents():
+    migrate_state_file(
+        GLOBAL_STATE,
+        {s: os.path.join(GLOBAL_DIR, s) for s in ("prompts", "system")},
+        "last_opened_global"
+    )
+    if not os.path.isdir(PROJECTS_DIR):
+        return
+    for project in sorted(os.listdir(PROJECTS_DIR)):
+        project_dir = os.path.join(PROJECTS_DIR, project)
+        if project.startswith(".") or not os.path.isdir(project_dir):
+            continue
+        migrate_state_file(
+            os.path.join(project_dir, "state.json"),
+            {s: os.path.join(project_dir, s) for s in ("background", "writing")},
+            "last_opened_project"
+        )
+
+
+DOCUMENTS_MIGRATED = False
+
+
+@app.before_request
+def migrate_once():
+    global DOCUMENTS_MIGRATED
+    if not DOCUMENTS_MIGRATED:
+        DOCUMENTS_MIGRATED = True
+        migrate_documents()
+
+
+def markdown_name(name):
+    return doc_name(doc_stem(name)) if isinstance(name, str) and name.endswith(".json") else name
+
+
+@app.before_request
+def accept_old_document_names():
+    """A page opened before the switch to Markdown still sends x.json; use x.md.
+    After the migration no .json documents exist, so the mapping is safe."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return None
+    for key in ("filename", "target_filename"):
+        if key in data:
+            data[key] = markdown_name(data[key])
+    for key in ("system", "background", "writing"):
+        if isinstance(data.get(key), list):
+            data[key] = [markdown_name(n) for n in data[key]]
+    if isinstance(data.get("items"), list):
+        data["items"] = rename_in_tree(data["items"], OldNames())
+    return None
+
+
+class OldNames(dict):
+    """rename_in_tree mapping that turns any x.json into x.md."""
+    def __contains__(self, name):
+        return isinstance(name, str) and name.endswith(".json")
+
+    def __getitem__(self, name):
+        return markdown_name(name)
+
+    def get(self, name, default=None):
+        return markdown_name(name) if name in self else default
+
+
+def tree_filenames(items):
+    names = []
+    for item in items or []:
+        if isinstance(item, dict) and item.get("type") == "folder":
+            names += tree_filenames(item.get("items"))
+        elif isinstance(item, dict) and item.get("filename"):
+            names.append(item["filename"])
+        elif isinstance(item, str):
+            names.append(item)
+    return names
+
+
+def sync_tree_with_disk(section, items):
+    """Match a sidebar list to its folder: .md files made in another program
+    (Obsidian) are added at the end; entries whose file is gone are dropped.
+    Returns (items, changed)."""
+    folder = get_base_path(section)
+    if not os.path.isdir(folder):
+        return items or [], False
+    on_disk = {
+        name for name in os.listdir(folder)
+        if is_doc_file(name) and os.path.isfile(os.path.join(folder, name))
+    }
+    listed = set(tree_filenames(items))
+    changed = False
+    for name in listed - on_disk:
+        items = remove_file_from_tree(items, name)
+        changed = True
+    for name in sorted(on_disk - listed):
+        doc = read_doc(os.path.join(folder, name)) or {}
+        items = (items or []) + [{"type": "file", "filename": name, "title": doc.get("title") or doc_stem(name)}]
+        changed = True
+    return items or [], changed
+
+
 # ===================== CORE HELPERS =====================
 
 
@@ -82,13 +246,17 @@ def load_json(path):
 
 
 def save_json(path, data):
+    write_text(path, json.dumps(data, indent=2))
+
+
+def write_text(path, text):
     # Write to a temp file in the same folder, then swap it in,
     # so a crash mid-save never leaves a half-written file
     folder = os.path.dirname(path) or "."
-    fd, tmp_path = tempfile.mkstemp(dir=folder, prefix=".tmp-", suffix=".json")
+    fd, tmp_path = tempfile.mkstemp(dir=folder, prefix=".tmp-")
     try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
             f.flush()
             os.fsync(f.fileno())
         os.chmod(tmp_path, 0o644)
@@ -97,6 +265,113 @@ def save_json(path, data):
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
         raise
+
+
+# ===================== DOCUMENT FILES =====================
+# Each document is a Markdown file: a front-matter header with its title,
+# then the text. Obsidian and other editors open these files as they are.
+# Older documents were JSON ({id, title, content}); read_doc still reads them.
+
+DOC_EXT = ".md"
+FRONT_MATTER = re.compile(r"\A---[ \t]*\n(.*?)\n?---[ \t]*(?:\n|\Z)", re.S)
+
+
+def doc_stem(filename):
+    for ext in (DOC_EXT, ".json"):
+        if filename.endswith(ext):
+            return filename[:-len(ext)]
+    return filename
+
+
+def doc_name(stem):
+    return f"{stem}{DOC_EXT}"
+
+
+def is_doc_file(name):
+    return name.endswith(DOC_EXT) and not name.startswith(".")
+
+
+def split_front_matter(text):
+    """(header lines, body). A file with no header gives ([], text)."""
+    match = FRONT_MATTER.match(text)
+    if not match:
+        return [], text
+    body = text[match.end():]
+    # One blank line separates the header from the text
+    if body.startswith("\n"):
+        body = body[1:]
+    return match.group(1).splitlines(), body
+
+
+def header_title(lines):
+    for line in lines:
+        key, sep, value = line.partition(":")
+        if sep and key.strip() == "title":
+            value = value.strip()
+            if value.startswith('"'):
+                try:
+                    return json.loads(value)
+                except ValueError:
+                    return value.strip('"')
+            if len(value) > 1 and value.startswith("'") and value.endswith("'"):
+                return value[1:-1].replace("''", "'")
+            return value
+    return None
+
+
+# Modified time of each document as the app last read or wrote it, so a
+# change made by another program (Obsidian) can be noticed before a save
+SEEN_MTIME = {}
+
+
+def remember_mtime(path):
+    try:
+        SEEN_MTIME[os.path.abspath(path)] = os.path.getmtime(path)
+    except OSError:
+        pass
+
+
+def changed_outside(path):
+    """True when the file changed on disk since the app last read or wrote it."""
+    seen = SEEN_MTIME.get(os.path.abspath(path))
+    try:
+        return seen is not None and os.path.getmtime(path) != seen
+    except OSError:
+        return False
+
+
+def read_doc(path):
+    """{id, title, content, wordCount} of a document file, or None."""
+    if path.endswith(".json"):
+        data = load_json(path)
+        if not isinstance(data, dict):
+            return None
+        title, content = data.get("title"), data.get("content") or ""
+    else:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                text = f.read()
+        except OSError:
+            return None
+        lines, content = split_front_matter(text)
+        title = header_title(lines)
+    stem = doc_stem(os.path.basename(path))
+    return {"id": stem, "title": title or stem, "content": content, "wordCount": count_words(content)}
+
+
+def write_doc(path, title, content):
+    """Write a Markdown document. Other header lines (tags added in Obsidian) are kept."""
+    extra = []
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                lines, _ = split_front_matter(f.read())
+            extra = [l for l in lines if l.partition(":")[0].strip() != "title"]
+        except OSError:
+            pass
+    header = ["---", f"title: {json.dumps(title or '', ensure_ascii=False)}", *extra, "---"]
+    write_text(path, "\n".join(header) + "\n\n" + (content or ""))
+    remember_mtime(path)
 
 
 # ===================== SAFETY HELPERS =====================
@@ -249,11 +524,8 @@ def load_file_content(section, filename):
     if not os.path.exists(file_path):
         return ""
 
-    data = load_json(file_path)
-    if not data:
-        return ""
-
-    return data.get("content", "")
+    doc = read_doc(file_path)
+    return doc["content"] if doc else ""
 
 
 def add_word_counts(section, items):
@@ -278,18 +550,27 @@ def version_time(version_id):
 
 
 def history_dir(section, filename):
-    stem = filename[:-5] if filename.endswith(".json") else filename
-    return os.path.join(get_base_path(section), ".history", stem)
+    return os.path.join(get_base_path(section), ".history", doc_stem(filename))
+
+
+def version_path(section, filename, version_id):
+    """A version's file: .md now, .json for versions kept before the switch."""
+    folder = history_dir(section, filename)
+    for ext in (DOC_EXT, ".json"):
+        path = os.path.join(folder, f"{version_id}{ext}")
+        if os.path.exists(path):
+            return path
+    return None
 
 
 def list_versions(section, filename):
     folder = history_dir(section, filename)
     if not os.path.isdir(folder):
         return []
-    return sorted(
-        f[:-5] for f in os.listdir(folder)
-        if f.endswith(".json") and VERSION_ID.match(f[:-5])
-    )
+    return sorted({
+        doc_stem(f) for f in os.listdir(folder)
+        if (f.endswith(DOC_EXT) or f.endswith(".json")) and VERSION_ID.match(doc_stem(f))
+    })
 
 
 def snapshot_file(section, filename, force=False):
@@ -307,8 +588,8 @@ def snapshot_file(section, filename, force=False):
             return
 
         # Nothing new to keep if the text matches the newest version
-        newest = load_json(os.path.join(folder, f"{versions[-1]}.json")) or {}
-        current = load_json(src) or {}
+        newest = read_doc(version_path(section, filename, versions[-1]) or "") or {}
+        current = read_doc(src) or {}
         if newest.get("content") == current.get("content"):
             return
 
@@ -319,11 +600,13 @@ def snapshot_file(section, filename, force=False):
         version_id = f"{base_id}-{n}"
 
     os.makedirs(folder, exist_ok=True)
-    shutil.copyfile(src, os.path.join(folder, f"{version_id}.json"))
+    shutil.copyfile(src, os.path.join(folder, f"{version_id}{DOC_EXT}"))
 
     # Drop the oldest versions beyond the limit
     for old in versions[:max(0, len(versions) + 1 - HISTORY_KEEP)]:
-        os.remove(os.path.join(folder, f"{old}.json"))
+        old_path = version_path(section, filename, old)
+        if old_path:
+            os.remove(old_path)
 
 
 def move_to_trash(path, trash_root):
@@ -579,8 +862,8 @@ def load_document(section, filename):
     path = os.path.join(get_base_path(section), filename)
     if not os.path.exists(path):
         return None
-    data = load_json(path) or {}
-    return data.get("title") or filename[:-5], data.get("content", "")
+    doc = read_doc(path)
+    return (doc["title"], doc["content"]) if doc else None
 
 
 def title_attr(text):
@@ -602,7 +885,7 @@ def build_ai_request(data):
     def add_group(tag, section):
         docs = []
         for filename in data.get(section, []):
-            if not (isinstance(filename, str) and filename.endswith(".json")):
+            if not (isinstance(filename, str) and (filename.endswith(DOC_EXT) or filename.endswith(".json"))):
                 continue
             doc = load_document(section, filename)
             if doc and doc[1].strip():
@@ -616,7 +899,7 @@ def build_ai_request(data):
     current = data.get("current")
     if not isinstance(current, dict):
         # Older pages send the editor text as the last writing item
-        raw = [i for i in data.get("writing", []) if isinstance(i, str) and not i.endswith(".json")]
+        raw = [i for i in data.get("writing", []) if isinstance(i, str) and not (i.endswith(DOC_EXT) or i.endswith(".json"))]
         current = {"title": "", "content": raw[-1] if raw else ""}
     if str(current.get("content") or "").strip():
         title = title_attr(current.get("title"))
@@ -864,6 +1147,18 @@ def api_load_all():
 
     global_state = load_json(GLOBAL_STATE)
     project_state = load_json(get_project_state())
+
+    # The folders are the truth: pick up files added or removed outside the app
+    for state, state_path, sections in (
+        (global_state, GLOBAL_STATE, ("prompts", "system")),
+        (project_state, get_project_state(), ("background", "writing"))
+    ):
+        any_change = False
+        for section in sections:
+            state[section], changed = sync_tree_with_disk(section, state.get(section))
+            any_change = any_change or changed
+        if any_change:
+            save_json(state_path, state)
 
     # Counts come from the files themselves, so files never saved here still have one
     for section in ("prompts", "system"):
@@ -1674,7 +1969,7 @@ def test_create():
 def test_load():
     with app.test_request_context(json={
         "section": "writing",
-        "filename": "chapter-one.json"
+        "filename": "chapter-one.md"
     }):
         return load_file()
 
@@ -1682,7 +1977,7 @@ def test_load():
 def test_save():
     with app.test_request_context(json={
         "section": "writing",
-        "filename": "chapter-one.json",
+        "filename": "chapter-one.md",
         "title": "Chapter One",
         "content": "This is a test save."
     }):
@@ -1711,7 +2006,7 @@ def api_create_item():
     if not section or not title:
         return jsonify({"error": "Missing data"}), 400
 
-    filename = slugify(title) + ".json"
+    filename = doc_name(slugify(title))
 
     base_path = get_base_path(section)
     state_file = get_state_file(section)
@@ -1726,11 +2021,7 @@ def api_create_item():
         return jsonify({"error": "File already exists"}), 400
 
     # Create file
-    save_json(file_path, {
-        "id": filename.replace(".json", ""),
-        "title": title,
-        "content": ""
-    })
+    write_doc(file_path, title, "")
 
     # Update state
     state = load_json(state_file)
@@ -1764,7 +2055,7 @@ def api_create_item_in_folder():
             "error": "Missing data"
         }), 400
 
-    filename = slugify(title) + ".json"
+    filename = doc_name(slugify(title))
 
     base_path = get_base_path(section)
 
@@ -1778,14 +2069,7 @@ def api_create_item_in_folder():
             "error": "File already exists"
         }), 400
 
-    save_json(file_path, {
-        "id": filename.replace(
-            ".json",
-            ""
-        ),
-        "title": title,
-        "content": ""
-    })
+    write_doc(file_path, title, "")
 
     state_file = get_state_file(section)
 
@@ -1842,17 +2126,16 @@ def api_save_file():
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
-    # Keep the previous text as a version before overwriting it
-    previous = load_json(file_path) or {}
-    if previous.get("content") and previous.get("content") != content:
-        snapshot_file(section, filename)
+    # Another program (Obsidian) changed the file since the app read it:
+    # keep that version in history before the app's text replaces it
+    outside = changed_outside(file_path)
 
-    save_json(file_path, {
-        "id": filename.replace(".json", ""),
-        "title": title,
-        "content": content,
-        "wordCount": word_count
-    })
+    # Keep the previous text as a version before overwriting it
+    previous = read_doc(file_path) or {}
+    if previous.get("content") and previous.get("content") != content:
+        snapshot_file(section, filename, force=outside)
+
+    write_doc(file_path, title, content)
 
     # Update last opened + title in state
     state_file = get_state_file(section)
@@ -1874,7 +2157,8 @@ def api_save_file():
 
     return jsonify({
         "status": "saved",
-        "wordCount": word_count
+        "wordCount": word_count,
+        "changedOutside": outside and previous.get("content") != content
     })
 
 
@@ -1929,9 +2213,20 @@ def api_load_file():
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
-    content = load_json(file_path)
+    # Opened for editing: from now on, a change by another program is noticed
+    remember_mtime(file_path)
+    return jsonify(read_doc(file_path) or {})
 
-    return jsonify(content)
+
+@app.route('/file_status', methods=['POST'])
+def api_file_status():
+    """Whether the open document still exists, and whether another program changed it."""
+    data = request.json
+    section, filename = data.get("section"), data.get("filename")
+    if not section or not filename:
+        return jsonify({"error": "Missing data"}), 400
+    path = os.path.join(get_base_path(section), filename)
+    return jsonify({"exists": os.path.exists(path), "changedOutside": changed_outside(path)})
 
 
 
@@ -2022,7 +2317,7 @@ def api_rename_item():
     if not section or not filename or not new_title:
         return jsonify({"error": "Missing data"}), 400
 
-    new_filename = slugify(new_title) + ".json"
+    new_filename = doc_name(slugify(new_title))
 
     base_path = get_base_path(section)
     state_file = get_state_file(section)
@@ -2037,15 +2332,10 @@ def api_rename_item():
         return jsonify({"error": "Target filename exists"}), 400
 
 
-    # Load file content
-    content = load_json(old_path)
-
-    content["title"] = new_title
-    content["id"] = new_filename.replace(".json", "")
-
-    save_json(new_path, content)
-
-    os.remove(old_path)
+    # Same text (and header lines) under the new name and title
+    content = (read_doc(old_path) or {}).get("content", "")
+    os.rename(old_path, new_path)
+    write_doc(new_path, new_title, content)
 
     # Version history follows the file to its new name
     old_history = history_dir(section, filename)
@@ -2187,20 +2477,15 @@ def free_name(exists, stem):
 def copy_document(section, filename, mark_copy=True):
     """Copy one document file; returns its new sidebar entry."""
     base = get_base_path(section)
-    data = load_json(os.path.join(base, filename)) or {}
-    stem = filename[:-5] if filename.endswith(".json") else filename
-    new_stem = free_name(lambda c: os.path.exists(os.path.join(base, f"{c}.json")), stem)
+    data = read_doc(os.path.join(base, filename)) or {}
+    stem = doc_stem(filename)
+    new_stem = free_name(lambda c: os.path.exists(os.path.join(base, doc_name(c))), stem)
     title = data.get("title") or stem
     if mark_copy:
         title = f"{title} (copy)"
     content = data.get("content", "")
-    save_json(os.path.join(base, f"{new_stem}.json"), {
-        "id": new_stem,
-        "title": title,
-        "content": content,
-        "wordCount": count_words(content)
-    })
-    return {"type": "file", "filename": f"{new_stem}.json", "title": title, "wordCount": count_words(content)}
+    write_doc(os.path.join(base, doc_name(new_stem)), title, content)
+    return {"type": "file", "filename": doc_name(new_stem), "title": title, "wordCount": count_words(content)}
 
 
 def folder_ids(items):
@@ -2464,9 +2749,7 @@ def api_file_history():
 
     versions = []
     for version_id in reversed(list_versions(section, filename)):
-        version = load_json(
-            os.path.join(history_dir(section, filename), f"{version_id}.json")
-        ) or {}
+        version = read_doc(version_path(section, filename, version_id) or "") or {}
         versions.append({
             "id": version_id,
             "time": version_time(version_id).isoformat(),
@@ -2489,11 +2772,11 @@ def api_file_version():
     if not section or not filename or not VERSION_ID.match(version_id):
         return jsonify({"error": "Missing data"}), 400
 
-    path = os.path.join(history_dir(section, filename), f"{version_id}.json")
-    if not os.path.exists(path):
+    path = version_path(section, filename, version_id)
+    if not path:
         return jsonify({"error": "Version not found"}), 404
 
-    version = load_json(path) or {}
+    version = read_doc(path) or {}
     return jsonify({
         "title": version.get("title", ""),
         "content": version.get("content", "")
@@ -2513,25 +2796,20 @@ def api_restore_version():
         return jsonify({"error": "Missing data"}), 400
 
     file_path = os.path.join(get_base_path(section), filename)
-    version_path = os.path.join(history_dir(section, filename), f"{version_id}.json")
+    saved_version = version_path(section, filename, version_id)
 
-    if not os.path.exists(file_path) or not os.path.exists(version_path):
+    if not os.path.exists(file_path) or not saved_version:
         return jsonify({"error": "Version not found"}), 404
 
-    version = load_json(version_path) or {}
+    version = read_doc(saved_version) or {}
     content = version.get("content", "")
-    title = version.get("title") or (load_json(file_path) or {}).get("title", "")
+    title = version.get("title") or (read_doc(file_path) or {}).get("title", "")
     word_count = count_words(content)
 
     # Keep the current text as a version too, so a restore can be undone
     snapshot_file(section, filename, force=True)
 
-    save_json(file_path, {
-        "id": filename.replace(".json", ""),
-        "title": title,
-        "content": content,
-        "wordCount": word_count
-    })
+    write_doc(file_path, title, content)
 
     state_file = get_state_file(section)
     state = load_json(state_file)
@@ -2574,8 +2852,8 @@ def api_trash():
                 meta = load_json(os.path.join(path, "project.json")) or {}
                 title = meta.get("title") or original
             else:
-                data = load_json(path) or {}
-                title = data.get("title") or original.replace(".json", "")
+                data = read_doc(path) or {}
+                title = data.get("title") or doc_stem(original)
 
             items.append({
                 "kind": kind,
@@ -2635,18 +2913,22 @@ def api_restore_trash():
         return jsonify({"error": "Invalid trash item"}), 400
 
     # Never overwrite a document that took the name in the meantime
-    stem = filename[:-5] if filename.endswith(".json") else filename
-    if os.path.exists(os.path.join(base_path, f"{stem}.json")):
-        stem = free_name(lambda c: os.path.exists(os.path.join(base_path, f"{c}.json")), stem)
-    filename = f"{stem}.json"
+    # Documents trashed before the switch to Markdown come back as .md
+    stem = doc_stem(filename)
+    if os.path.exists(os.path.join(base_path, doc_name(stem))):
+        stem = free_name(lambda c: os.path.exists(os.path.join(base_path, doc_name(c))), stem)
+    filename = doc_name(stem)
 
-    doc = load_json(src) or {}
+    doc = read_doc(src) or {}
     content = doc.get("content", "")
     title = doc.get("title") or stem
-    save_json(os.path.join(base_path, filename), {
-        **doc, "id": stem, "title": title, "content": content, "wordCount": count_words(content)
-    })
-    os.remove(src)
+    if src.endswith(DOC_EXT):
+        # Keep its header lines: move it back, then set the title
+        shutil.move(src, os.path.join(base_path, filename))
+        write_doc(os.path.join(base_path, filename), title, content)
+    else:
+        write_doc(os.path.join(base_path, filename), title, content)
+        os.remove(src)
     forget_trash(root, trash_name)
 
     # Back into its old folder, or the top level if that folder is gone

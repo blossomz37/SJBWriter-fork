@@ -1387,7 +1387,7 @@ async function updateTokenMeter() {
     collectFilenames(tree || [])
       .filter(f => set.has(f) && (section === "system" || !isOpenFile(section, f)))
       .map(async f => ({
-        title: findFileItemInTree(tree || [], f)?.title || f.replace(/\.json$/, ""),
+        title: findFileItemInTree(tree || [], f)?.title || f.replace(/\.(md|json)$/, ""),
         content: ((await ensureFileCached(section, f)) || "").trim()
       }))
   );
@@ -2602,6 +2602,9 @@ async function saveCurrentFile() {
   if (data.status === "saved") {
     isDirty = false;
     lastSavedAt = Date.now();
+    if (data.changedOutside) {
+      showToast("This document was also changed in another program. That version is kept in Version history.", "info");
+    }
     fileCache[`${currentFile.section}/${currentFile.filename}`] = editor.value;
 
     const isGlobal =
@@ -2633,6 +2636,11 @@ async function saveCurrentFile() {
 }
 
 
+// Documents were .json files before the switch to Markdown; ticks saved
+// back then still point at the old names
+const toMarkdownName = name =>
+  typeof name === "string" && name.endsWith(".json") ? name.slice(0, -5) + ".md" : name;
+
 function loadSelections() {
 
   // ---------- GLOBAL ----------
@@ -2644,8 +2652,8 @@ function loadSelections() {
 
       const data = JSON.parse(globalSaved);
 
-      selected.system = new Set(data.system || []);
-      selected.prompt = data.prompt || null;
+      selected.system = new Set((data.system || []).map(toMarkdownName));
+      selected.prompt = toMarkdownName(data.prompt) || null;
 
     } catch (e) {
       console.error("Failed loading global selections", e);
@@ -2662,10 +2670,10 @@ function loadSelections() {
       const data = JSON.parse(projectSaved);
 
       selected.background =
-        new Set(data.background || []);
+        new Set((data.background || []).map(toMarkdownName));
 
       selected.writing =
-        new Set(data.writing || []);
+        new Set((data.writing || []).map(toMarkdownName));
 
     } catch (e) {
       console.error("Failed loading project selections", e);
@@ -3039,9 +3047,6 @@ function renderSection(
     const filename = item.filename;
     const title =
       item.title || item.filename;
-    if (item.filename === "17.json") {
-    }
-
     const row = document.createElement('div');
     row.classList.add('file-row');
     row.style.marginLeft =
@@ -4855,7 +4860,7 @@ function updateAiSummary() {
   let prompt = "No prompt";
   if (selected.prompt) {
     const item = findFileItemInTree(state.global.prompts || [], selected.prompt);
-    prompt = `Prompt: ${item?.title || selected.prompt.replace(/\.json$/, "")}`;
+    prompt = `Prompt: ${item?.title || selected.prompt.replace(/\.(md|json)$/, "")}`;
   }
 
   const rulesText = rules === 0 ? "No rules" : rules === 1 ? "1 rule" : `${rules} rules`;
@@ -5031,6 +5036,55 @@ function closeHistory() {
   historyTarget = null;
   historySelectedId = null;
 }
+
+
+// =====================
+// OUTSIDE CHANGES: documents are plain .md files, so another program
+// (Obsidian) may add, remove, or edit them while the app is open
+// =====================
+
+let syncingWithDisk = false;
+
+async function syncWithDisk() {
+  if (!appReady || isGenerating || syncingWithDisk) return;
+  syncingWithDisk = true;
+  try {
+    const data = await (await fetch('/load')).json();
+    state.global = { ...state.global, prompts: data.global.prompts, system: data.global.system };
+    state.project = { ...state.project, background: data.project.background, writing: data.project.writing };
+    await renderLists();
+
+    if (!currentFile.filename) return;
+    const { data: status } = await postJSON('/file_status', {
+      section: currentFile.section,
+      filename: currentFile.filename
+    });
+
+    if (!status.exists) {
+      showToast("This document was moved or deleted in another program.", "info");
+    } else if (status.changedOutside && isDirty) {
+      showToast("This document changed in another program. Your next save keeps that version in Version history.", "info");
+    } else if (status.changedOutside) {
+      const { data: doc } = await postJSON('/load_file', {
+        section: currentFile.section,
+        filename: currentFile.filename
+      });
+      fileCache[`${currentFile.section}/${currentFile.filename}`] = doc.content || "";
+      titleInput.value = doc.title || "";
+      editor.value = doc.content || "";
+      schedulePreviewRender();
+      updateWordCount();
+      updateTokenMeter();
+      showToast("Reloaded: this document changed in another program.", "info");
+    }
+  } catch (e) {
+    console.error("Could not check for outside changes", e);
+  } finally {
+    syncingWithDisk = false;
+  }
+}
+
+window.addEventListener("focus", syncWithDisk);
 
 
 // =====================
