@@ -11,6 +11,8 @@ from datetime import datetime
 # ===================== APP SETUP =====================
 app = Flask(__name__)
 
+APP_VERSION = "0.9.0"
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -640,7 +642,7 @@ def call_ollama(prompt, settings):
 
 @app.route("/")
 def route_home():
-    return render_template("index.html")
+    return render_template("index.html", app_version=APP_VERSION)
 
 
 @app.route('/save_api_key', methods=['POST'])

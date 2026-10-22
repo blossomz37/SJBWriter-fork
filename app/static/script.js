@@ -25,6 +25,33 @@ function applyAppearance(mode, accent) {
   });
   document.body.dataset.mode = mode;
   document.body.dataset.accent = accent;
+  updateModeToggle();
+}
+
+// Top bar sun/moon: shows the mode a click switches to
+function updateModeToggle() {
+  const btn = document.getElementById("modeToggle");
+  if (!btn) return;
+  const dark = document.body.classList.contains("mode-dark");
+  const label = dark ? "Light mode" : "Dark mode";
+  btn.innerHTML = iconSvg(dark ? "sun" : "moon");
+  btn.dataset.tip = label;
+  btn.setAttribute("aria-label", `Switch to ${label.toLowerCase()}`);
+}
+
+// Quick switch keeps the accent; "Match system" stays a Settings choice
+async function toggleLightDark() {
+  const themeMode = document.body.classList.contains("mode-dark") ? "light" : "dark";
+  const { accent } = savedAppearance();
+  applyAppearance(themeMode, accent);
+
+  state.app_state.themeMode = themeMode;
+  state.app_state.accent = accent;
+  await fetch('/save_app_state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ themeMode, accent })
+  });
 }
 
 function savedAppearance() {
