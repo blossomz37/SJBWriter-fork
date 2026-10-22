@@ -9,6 +9,36 @@ fork.
 
 ---
 
+## 2026-10-22: Output markers moved into the AI setup panel
+
+**Commit:** `f6a5e38`. **Files:** `app/templates/index.html`,
+`app/static/script.js`, `app/static/style.css`.
+
+- **Why:** the markers control how AI output lands in the text, so they
+  belong with the other AI setup. Moving them also declutters Settings.
+- **How:**
+  - A native `<details id="aiMarkers">` block sits at the bottom of the AI
+    setup panel, below System and Prompts. Its summary is styled like the
+    section labels: an 11 px uppercase label with a chevron that turns when
+    folded.
+  - It is folded by default. The open state is remembered in `localStorage`
+    (`sjb_markers_open`).
+  - It holds the same three fields, with the same IDs: the on/off checkbox,
+    "Before AI text", and "After AI text".
+  - **Saving:** like the rest of the panel, it has no Save button.
+    `initMarkersPanel()` saves the checkbox at once, and the two text boxes
+    400 ms after typing stops, through the existing `/save_app_state`. The
+    stored keys and the generation behavior are unchanged.
+  - When markers are off, the text boxes fade to 50 %.
+  - **Removed:** the section in the Settings window, its save and load code
+    in `saveSettings()` and `loadSettingsIntoUI()`, and its 21 lines of
+    now-unused CSS.
+- **Tested:** typed text is saved without a Save button and used by the next
+  generation; markers off gives plain output; the open state, the checkbox,
+  and the text all survive a reload.
+
+---
+
 ## 2026-10-22: Resizable sidebar and AI setup panel
 
 **Commit:** `2133d21`. **Files:** `app/templates/index.html`,
