@@ -256,6 +256,15 @@ def load_file_content(section, filename):
     return data.get("content", "")
 
 
+def add_word_counts(section, items):
+    """Fill in every file's word count from its file, so the sidebar never shows (?)."""
+    for item in items or []:
+        if isinstance(item, dict) and item.get("type") == "folder":
+            add_word_counts(section, item.get("items"))
+        elif isinstance(item, dict) and item.get("filename"):
+            item["wordCount"] = count_words(load_file_content(section, item["filename"]))
+
+
 # ===================== VERSION HISTORY & TRASH =====================
 # Each section folder keeps hidden .history/<file>/ and .trash/ folders.
 
@@ -675,6 +684,12 @@ def api_load_all():
 
     global_state = load_json(GLOBAL_STATE)
     project_state = load_json(get_project_state())
+
+    # Counts come from the files themselves, so files never saved here still have one
+    for section in ("prompts", "system"):
+        add_word_counts(section, global_state.get(section))
+    for section in ("background", "writing"):
+        add_word_counts(section, project_state.get(section))
 
     return jsonify({
         "global": global_state,
@@ -1557,7 +1572,8 @@ def api_create_item():
     state[state_key].append({
         "type": "file",
         "filename": filename,
-        "title": title
+        "title": title,
+        "wordCount": 0
     })
 
 
@@ -1623,7 +1639,8 @@ def api_create_item_in_folder():
     folder["items"].append({
         "type": "file",
         "filename": filename,
-        "title": title
+        "title": title,
+        "wordCount": 0
     })
 
     save_json(

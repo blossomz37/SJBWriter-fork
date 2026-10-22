@@ -1304,36 +1304,25 @@ function updateActiveModelDisplay() {
 
 
 async function updateTokenMeter() {
-  let combined = [];
+  // Same parts, in the same order, as the request generate() sends
+  const pick = (tree, set) =>
+    collectFilenames(tree || []).filter(f => set.has(f));
+  const read = (section, files) =>
+    Promise.all(files.map(f => ensureFileCached(section, f)));
 
-  // SYSTEM
-  for (const f of selected.system) {
-    const content = await ensureFileCached("system", f);
-    combined.push(content);
-  }
+  const parts = {
+    Rules: await read("system", pick(state.global?.system, selected.system)),
+    Notes: await read("background", pick(state.project?.background, selected.background)),
+    Chapters: await read(
+      "writing",
+      pick(state.project?.writing, selected.writing).filter(f => f !== currentFile.filename)
+    ),
+    "This document": [editor.value],
+    Instruction: [promptBox.value]
+  };
 
-  // BACKGROUND
-  for (const f of selected.background) {
-    const content = await ensureFileCached("background", f);
-    combined.push(content);
-  }
-
-  // WRITING (exclude current file)
-  for (const f of selected.writing) {
-    if (f === currentFile.filename) continue;
-    const content = await ensureFileCached("writing", f);
-    combined.push(content);
-  }
-
-  // EDITOR CONTENT
-  combined.push(editor.value);
-
-  // PROMPT BOX (already includes selected prompt)
-  combined.push(promptBox.value);
-
-  const text = combined.join("\n\n---\n\n");
-
-  const tokens = estimateTokens(text);
+  const join = list => list.join("\n\n---\n\n");
+  const tokens = estimateTokens(join(Object.values(parts).flat()));
   const selectedModel = getModelById(settings.modelName);
   const max = selectedModel?.context || 128000;
 
@@ -1341,10 +1330,16 @@ async function updateTokenMeter() {
   if (tokens / max > 0.9) level = "high";
   else if (tokens / max > 0.7) level = "warn";
 
+  const short = n => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
   const meter = document.getElementById("tokenMeter");
   meter.dataset.level = level;
-  meter.innerText =
-    `${tokens.toLocaleString()} / ${max.toLocaleString()} tokens`;
+  meter.innerText = `AI request ≈ ${tokens.toLocaleString()} / ${short(max)} tokens`;
+
+  // Hover: where the tokens come from
+  meter.dataset.tip = Object.entries(parts)
+    .filter(([, list]) => list.some(text => text))
+    .map(([name, list]) => `${name} ${estimateTokens(join(list)).toLocaleString()}`)
+    .join(" · ") || "Nothing to send yet";
 }
 
 function toggleProjectMenu(e) {

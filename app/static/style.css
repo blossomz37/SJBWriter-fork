@@ -1390,7 +1390,6 @@ body.zen .zen-exit {
   border-top: 1px solid var(--border);
   box-sizing: border-box;
   white-space: nowrap;
-  overflow: hidden;
 }
 
 .status-left,
@@ -1412,6 +1411,8 @@ body.zen .zen-exit {
 
 /* Context meter dot: green, amber above 70%, red above 90% */
 #tokenMeter {
+  position: relative;   /* anchors the breakdown tooltip */
+  cursor: default;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2109,4 +2110,9 @@ body.zen #closeDocBtn {
 /* Items sit one step in, so folder arrows line up under the section name */
 .section > [id$="List"] {
   padding-left: calc(var(--tree-indent) + 2px);
+}
+
+/* Long project › file names truncate; the right side stays free for tooltips */
+.status-left {
+  overflow: hidden;
 }
