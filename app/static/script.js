@@ -2325,7 +2325,7 @@ function renderProjectList(data) {
   const currentMeta = projectMap[currentProject];
 
   document.getElementById("currentProjectLabel").innerText =
-    `Project: ${currentMeta?.title || currentProject}`;
+    currentMeta?.title || currentProject;
 
   // Build recent project objects, ignoring stale IDs
   const recentProjects = showRecent
@@ -3840,7 +3840,7 @@ function updateEmptyState() {
 function updateStatusBar() {
   updateEmptyState();
   const project = document.getElementById("currentProjectLabel")
-    .textContent.replace(/^\s*Project:\s*/, "").trim();
+    .textContent.trim();
   const file = currentFile.filename ? (titleInput.value || "Untitled") : "";
   document.getElementById("statusLocation").textContent =
     file ? `${project} › ${file}` : project;
