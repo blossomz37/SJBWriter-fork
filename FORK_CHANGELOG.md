@@ -9,6 +9,24 @@ fork.
 
 ---
 
+## 2026-10-22: "ALPHA" project menu label renamed
+
+**Commit:** `ee68f2d`. **File:** `app/static/script.js`.
+
+- **Why:** "ALPHA" (short for "alphabetical") read like a version stage, not
+  a list name.
+- **How:**
+  - The project switcher has up to two groups. **RECENT** appears only with 7
+    or more projects. The second group lists the rest from A to Z.
+  - That second group is now headed **PROJECTS** when it is the only group,
+    and **OTHER PROJECTS** when RECENT appears above it.
+  - The change is made in both places that build the list:
+    `toggleProjectDropdown()` and `renderProjectList()`.
+- **Tested:** with 3 projects the menu shows "PROJECTS". With 8, it shows
+  "RECENT" and "OTHER PROJECTS".
+
+---
+
 ## 2026-10-22: Project header shows just the name
 
 **Commit:** `8053260`. **Files:** `app/static/script.js`,
