@@ -12,7 +12,7 @@ fork.
 The dated entries below are newest first. This overview groups them by area;
 each line links to its full entry.
 
-**At a glance (from Jim's version to this fork):** 44 entries, each change
+**At a glance (from Jim's version to this fork):** 45 entries, each change
 tested on a scratch copy before it was merged. Documents moved from JSON to
 Markdown. The server went from one 1,844-line file to 12 small files, and
 the page script from one 3,863-line file to nine. The fork adds 38 server
@@ -55,6 +55,7 @@ See exactly what is sent, control how it answers, and know what it costs.
 
 A calmer page with the numbers a writer wants.
 
+- [Paragraph spacing for one-paragraph-per-line text](#2026-10-22-paragraph-spacing-for-one-paragraph-per-line-text): Each line is a paragraph in the preview, and imports add the missing empty lines.
 - [Help pages, and a Help button](#2026-10-22-help-pages-and-a-help-button): Eight help pages with screenshots, opened from the ? button in the top bar.
 - [Markdown preview toggle](#2026-10-22-markdown-preview-toggle): Preview the document as formatted text (⌘E).
 - [Sidebar toggle, zen mode, status bar, shortcuts, file reveal](#2026-10-22-sidebar-toggle-zen-mode-status-bar-shortcuts-file-reveal): Hide the sidebar, zen mode, a status bar, keyboard shortcuts, and the open file always visible in the sidebar.
@@ -97,6 +98,39 @@ Easier and safer to change.
 - [Housekeeping: tests, requirements, dead code, narrow windows](#2026-10-22-housekeeping-tests-requirements-dead-code-narrow-windows): 38 server tests, `requirements.txt`, dead code removed, and no sideways scroll in narrow windows.
 - [Server code split into small files](#2026-10-22-server-code-split-into-small-files): `app.py` (3,342 lines) is now a 44-line start file plus 11 small files in `app/sjb/`.
 - [Page script split into nine files, plus a browser smoke test](#2026-10-22-page-script-split-into-nine-files-plus-a-browser-smoke-test): `script.js` (5,842 lines) is now nine files in `app/static/js/`, with a browser smoke test.
+
+---
+
+## 2026-10-22: Paragraph spacing for one-paragraph-per-line text
+
+One commit (`82ecccc`). **Files:** `app/static/js/editor.js`,
+`app/sjb/importer.py`, `tests/test_import.py`, and the help pages.
+
+**Why:** Word, Scrivener, and plain-text exports often put one paragraph on
+each line, with no empty line between paragraphs. Markdown needs that empty
+line, so the preview joined the lines into one paragraph with bare line
+breaks, and an imported chapter looked cramped. The app's own Word export
+already treated each line as a paragraph, so the same text looked fine in
+Word and cramped in the preview.
+
+**How:**
+
+- **Preview:** before drawing, `paragraphPerLine()` puts an empty line between
+  lines that are separate paragraphs. Code blocks stay together, and so do
+  lines inside one list, quote, or table, and an indented line that continues
+  a list item. The file itself is not changed.
+- **Import:** the same rule (`add_paragraph_breaks`) runs on Markdown and text
+  files, but only when `one_paragraph_per_line` says the file uses that style:
+  - at least two prose lines follow each other directly,
+  - empty lines between prose lines are no more than half as many,
+  - and at least 60% of prose lines end a sentence.
+  Text wrapped at a fixed width (emails, Project Gutenberg) breaks lines
+  mid-sentence, so it is left alone. The preview list marks those files
+  "paragraph spacing added".
+- **Checked:** five new tests (one per line, fixed-width wrapping, already
+  spaced, lists, quotes, and code, and the import note). A browser check:
+  the preview of a one-per-line file shows separate paragraphs and a real
+  list, with no forced line breaks.
 
 ---
 
