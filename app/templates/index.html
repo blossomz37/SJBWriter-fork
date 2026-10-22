@@ -101,10 +101,10 @@
   <input id="titleInput" placeholder="Title..." />
   <!-- ---------- FORMATTING BAR ---------- -->
   <div class="formatting">
-    <button onclick="wrapSelection('**')"><b>B</b></button>
-    <button onclick="wrapSelection('*')"><i>I</i></button>
-    <button onclick="insertPrefix('## ')">H2</button>
-    <button onclick="insertPrefix('- ')">•</button>
+    <button class="md-tool" onclick="wrapSelection('**')"><b>B</b></button>
+    <button class="md-tool" onclick="wrapSelection('*')"><i>I</i></button>
+    <button class="md-tool" onclick="insertPrefix('## ')">H2</button>
+    <button class="md-tool" onclick="insertPrefix('- ')">•</button>
 
     <select id="fontSelect" onchange="changeEditorFont(this.value)">
       <option value="Georgia">Georgia</option>
@@ -125,10 +125,27 @@
       <option value="17px">17</option>
       <option value="18px">18</option>
     </select>
+
+    <!-- Preview toggle (eye icon: Lucide, ISC license) -->
+    <button type="button"
+            id="previewToggle"
+            class="icon-btn"
+            onclick="togglePreview()"
+            title="Preview (⌘E)"
+            aria-label="Preview"
+            aria-pressed="false">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+    </button>
   </div>
 
   <!-- ---------- MAIN EDITOR ---------- -->
   <textarea id="editor"></textarea>
+  <!-- Rendered Markdown view; shown instead of the editor in preview mode -->
+  <div id="preview" class="markdown-preview hidden" title="Double-click to edit"></div>
   <!-- ---------- AI CONTROL PANEL ---------- -->
   <div class="bottom">
     <!-- Prompt Input -->
@@ -414,6 +431,9 @@
 
 <!-- ===================== SCRIPT ENTRY ===================== -->
 <!-- ✅ KEEP SCRIPT HERE -->
+<!-- Markdown preview: marked (MIT) renders, DOMPurify (Apache-2.0/MPL-2.0) sanitizes -->
+<script src="{{ url_for('static', filename='vendor/marked.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/purify.min.js') }}"></script>
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 
 </body>

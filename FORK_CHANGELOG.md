@@ -9,6 +9,60 @@ fork.
 
 ---
 
+## 2026-10-22: Markdown preview toggle
+
+**Commit:** `09c7f9e`. **Files:** `app/templates/index.html`,
+`app/static/script.js`, `app/static/style.css`, and the new
+`app/static/vendor/marked.min.js` and `app/static/vendor/purify.min.js`.
+
+- **Why:** the editor shows raw Markdown (`#`, `**`, `|`), so headings, lists,
+  and tables are hard to read. Writers want to see the finished page without
+  leaving the app.
+- **What the user sees:**
+  - An eye button at the right end of the formatting bar.
+  - **⌘E** (Ctrl+E on Windows) does the same thing. It is the same key as
+    Obsidian's preview toggle.
+  - Preview replaces the editor with a rendered page: headings, bullet and
+    numbered lists (nested too), tables (with column alignment), block quotes,
+    inline code and code blocks, links, and images.
+  - The button turns the accent color while preview is on.
+  - The B, I, H2, and bullet buttons are disabled in preview, because they edit
+    raw text.
+  - Double-click the preview to go back to editing.
+  - Preview mode is remembered after a reload.
+- **How it works:**
+  - **Libraries:** two small libraries are stored in the app, with no CDN, so
+    preview works offline. `marked` 12.0.2 (MIT) turns Markdown into HTML.
+    `DOMPurify` 3.1.6 (Apache-2.0 / MPL-2.0) then removes scripts and event
+    handlers. This matters because the text can come from an AI model. The
+    rendered HTML is never inserted without that cleaning step.
+  - **Markdown options:** GitHub-style Markdown with `breaks: true`. A single
+    line break in the text stays a line break, which matches what the writer
+    sees while typing, for dialogue and poetry.
+  - **Clean-up after rendering:** every link gets `target="_blank"` and
+    `rel="noopener noreferrer"`, so clicking one never navigates the app away
+    from unsaved work. A plain link whose address ends in an image extension
+    (png, jpg, jpeg, gif, webp, svg, avif) is also shown as the image. The
+    standard `![alt](url)` form works as usual.
+  - **Layout:** the preview copies the editor's chosen font and size. It uses
+    the same centered text column (`--editor-measure`) and theme colors as the
+    editor, so switching modes does not make the page jump.
+  - **Staying current:** the preview re-renders when the text changes (typing,
+    opening a file, undo, and streaming AI output). It renders at most once per
+    animation frame, so long generations stay smooth. The hook is the existing
+    word-count update, plus the three places that clear the editor.
+  - **Nothing saved changes:** the editor textarea stays the single source of
+    text. Preview only reads from it, and never writes to it.
+- **Note:** images from the web load from their own servers when the preview
+  is shown.
+
+**Check:** paste a heading, a list, a table, and
+`[pic](https://…/image.jpg)` into a file. Press ⌘E. All four should render, and
+the image should show. Press ⌘E again, or double-click, to return to the raw
+text.
+
+---
+
 ## 2026-10-22: UI polish, batch 1 (CSS only)
 
 **Commit:** `b8df8d5`. **File:** `app/static/style.css`. No HTML, JavaScript,
