@@ -2017,6 +2017,7 @@ body.no-document .bottom {
 }
 
 body.no-document #wordCount,
+body.no-document #dialoguePercent,
 body.no-document #readingTime {
   display: none;
 }
@@ -2115,4 +2116,9 @@ body.zen #closeDocBtn {
 /* Long project › file names truncate; the right side stays free for tooltips */
 .status-left {
   overflow: hidden;
+}
+
+#dialoguePercent {
+  position: relative;   /* anchors its tooltip */
+  cursor: default;
 }
