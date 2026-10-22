@@ -681,7 +681,16 @@
 
 <script src="{{ url_for('static', filename='vendor/marked.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/purify.min.js') }}"></script>
-<script src="{{ url_for('static', filename='script.js') }}"></script>
+<!-- The page script, in load order (plain scripts sharing one global scope; startup last) -->
+<script src="{{ url_for('static', filename='js/core.js') }}"></script>
+<script src="{{ url_for('static', filename='js/appearance.js') }}"></script>
+<script src="{{ url_for('static', filename='js/models.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai.js') }}"></script>
+<script src="{{ url_for('static', filename='js/projects.js') }}"></script>
+<script src="{{ url_for('static', filename='js/windows.js') }}"></script>
+<script src="{{ url_for('static', filename='js/startup.js') }}"></script>
 
 </body>
 </html>
