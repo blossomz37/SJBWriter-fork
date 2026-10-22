@@ -9,6 +9,28 @@ fork.
 
 ---
 
+## 2026-10-22: Panel toggles in the top bar
+
+**Commit:** `d7cd197`. **Files:** `app/templates/index.html`,
+`app/static/script.js`, `app/static/style.css`.
+
+- **Why:** this sets one simple rule for the layout. The top bar holds
+  *window* controls (which panels are open, light or dark, settings). The
+  editor toolbar holds *document* controls (formatting, preview, zen).
+- **How:**
+  - The **sidebar toggle** moved from the title row to the left edge of the top
+    bar, before the logo. The title row now holds only the title.
+  - A new **AI setup toggle** (Lucide `panel-right`) sits in the top bar, left
+    of the light/dark switch. It calls the same `toggleAiPanel()` as the
+    summary chip and ⌘⌥\\.
+  - Both toggles set `aria-pressed`. In the top bar, a pressed toggle shows its
+    icon in the accent color, so an open panel is visible at a glance.
+    `setAiPanelOpen()` keeps the new toggle in sync.
+  - The zen rule that hid `#sidebarToggle` was removed, because zen hides the
+    whole top bar.
+
+---
+
 ## 2026-10-22: Top bar with logo, version, light/dark switch, and settings
 
 **Commit:** `af6c552`. **Files:** `app/app.py`, `app/templates/index.html`,

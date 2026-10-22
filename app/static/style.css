@@ -1339,8 +1339,7 @@ body.sidebar-collapsed .left {
 body.zen .left,
 body.zen .formatting,
 body.zen .bottom,
-body.zen .status-bar,
-body.zen #sidebarToggle {
+body.zen .status-bar {
   display: none;
 }
 
@@ -1934,4 +1933,13 @@ body.ai-panel-open .toast-stack {
 
 body.zen .top-bar {
   display: none;
+}
+
+/* Panel toggles in the top bar show the open panel in the accent color */
+.top-bar .icon-btn[aria-pressed="true"] {
+  color: var(--accent);
+}
+
+.top-bar .top-bar-logo {
+  margin-left: 4px;
 }
