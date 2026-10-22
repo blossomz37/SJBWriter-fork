@@ -1110,10 +1110,11 @@ async function deleteSelectedModel() {
     return;
   }
 
-  const confirmed =
-    confirm(
-      `Delete "${model?.name || selectedModelId}"?`
-    );
+  const confirmed = await askConfirm(
+    `Delete “${model?.name || selectedModelId}”?`,
+    "It is removed from your model list. You can add it again later.",
+    { okLabel: "Delete", danger: true }
+  );
 
   if (!confirmed) {
     return;
@@ -1435,7 +1436,7 @@ function toggleProjectMenu(e) {
 
   create.onclick = async () => {
 
-    const name = prompt("Project name:");
+    const name = await askText("New project", "", { placeholder: "Project name", okLabel: "Create" });
 
     if (!name) return;
 
@@ -1486,8 +1487,7 @@ function toggleProjectMenu(e) {
     const currentName =
       project?.title || currentProject;
 
-    const newName =
-      prompt("New project name:", currentName);
+    const newName = await askText("Rename project", currentName, { okLabel: "Rename" });
 
     if (!newName) return;
 
@@ -1535,8 +1535,11 @@ function toggleProjectMenu(e) {
       return;
     }
 
-    const confirmed = confirm(
-      `Delete project "${currentProject}"?`
+    const projectTitle = projects.find(p => p.id === currentProject)?.title || currentProject;
+    const confirmed = await askConfirm(
+      `Delete the project “${projectTitle}”?`,
+      "It moves to the Trash. You can restore it from Project ⋯ → Trash…",
+      { okLabel: "Delete", danger: true }
     );
 
     if (!confirmed) return;
@@ -2112,7 +2115,7 @@ function showAddModelForm() {
 // =====================
 
 async function createNew(section) {
-  const title = prompt("Enter title:");
+  const title = await askText("New document", "", { placeholder: "Title", okLabel: "Create" });
 
   if (!title) return;
 
@@ -2158,7 +2161,7 @@ async function createNew(section) {
 
 async function createFolder(section) {
 
-  const title = prompt("Folder name:");
+  const title = await askText("New folder", "", { placeholder: "Folder name", okLabel: "Create" });
 
   if (!title) return;
 
@@ -3199,8 +3202,7 @@ function toggleFolderMenu(
 
   addFile.onclick = async () => {
 
-    const title =
-      prompt("Enter title:");
+    const title = await askText("New document", "", { placeholder: "Title", okLabel: "Create" });
 
     if (!title) return;
 
@@ -3256,11 +3258,7 @@ function toggleFolderMenu(
 
   rename.onclick = async () => {
 
-    const newTitle =
-      prompt(
-        "New folder name:",
-        folder.title
-      );
+    const newTitle = await askText("Rename folder", folder.title, { okLabel: "Rename" });
 
     if (!newTitle) return;
 
@@ -3311,11 +3309,7 @@ function toggleFolderMenu(
 
   del.onclick = async () => {
 
-    if (
-      !confirm(
-        `Delete folder "${folder.title}"?`
-      )
-    ) {
+    if (!(await askConfirm(`Delete the folder “${folder.title}”?`, "", { okLabel: "Delete", danger: true }))) {
       return;
     }
 
@@ -3620,7 +3614,11 @@ function toggleMenu(row, section, filename) {
   const rename = document.createElement('div');
   rename.textContent = "Rename";
   rename.onclick = async () => {
-    const newTitle = prompt("New name:");
+    const currentTitle = findFileItemInTree(
+      (section === "prompts" || section === "system" ? state.global[section] : state.project[section]) || [],
+      filename
+    )?.title || "";
+    const newTitle = await askText("Rename document", currentTitle, { okLabel: "Rename" });
     if (!newTitle) return;
 
     const res = await fetch('/rename_item', {
@@ -3655,7 +3653,15 @@ function toggleMenu(row, section, filename) {
   const del = document.createElement('div');
   del.textContent = "Delete";
   del.onclick = async () => {
-    if (!confirm("Delete this file?")) return;
+    const docTitle = findFileItemInTree(
+      (section === "prompts" || section === "system" ? state.global[section] : state.project[section]) || [],
+      filename
+    )?.title || filename;
+    if (!(await askConfirm(
+      `Delete “${docTitle}”?`,
+      "It moves to the Trash. You can restore it from Project ⋯ → Trash…",
+      { okLabel: "Delete", danger: true }
+    ))) return;
 
     const res = await fetch('/delete_item', {
       method: 'POST',
@@ -4971,7 +4977,7 @@ async function chooseDataFolder(button) {
     let { data: pick } = await postJSON('/choose_data_folder', {});
     if (pick.cancelled) return;
     if (pick.error === "no-picker") {
-      const typed = window.prompt("Folder for your books (full path):");
+      const typed = await askText("Folder for your books", "", { placeholder: "Full path, for example /Users/you/Books", okLabel: "Next" });
       if (!typed) return;
       ({ data: pick } = await postJSON('/folder_info', { path: typed }));
       if (!pick.exists) {
@@ -4981,10 +4987,10 @@ async function chooseDataFolder(button) {
     }
 
     const copy = !pick.hasBooks;
-    const question = copy
-      ? `Copy your books to\n${pick.path}\nand use them from there? The originals stay where they are, as a backup.`
-      : `${pick.path}\nalready has books. Use them? Your current books stay where they are.`;
-    if (!confirm(question)) return;
+    const agreed = copy
+      ? await askConfirm("Copy your books here?", `${pick.path}\n\nThe app copies your books there and uses them from then on. The originals stay where they are, as a backup.`, { okLabel: "Copy and use" })
+      : await askConfirm("Use the books in this folder?", `${pick.path}\n\nThis folder already has books. Your current books stay where they are.`, { okLabel: "Use this folder" });
+    if (!agreed) return;
 
     await switchDataFolder({ path: pick.path, copy });
   } finally {
@@ -4993,7 +4999,7 @@ async function chooseDataFolder(button) {
 }
 
 async function resetDataFolder() {
-  if (!confirm("Use the books in the app folder again? The books in your chosen folder stay there.")) return;
+  if (!(await askConfirm("Use the app folder again?", "The books in your chosen folder stay there.", { okLabel: "Use the app folder" }))) return;
   await switchDataFolder({ path: null, copy: false });
 }
 
@@ -5320,7 +5326,7 @@ async function emptyTrash() {
   if (trashItems.length === 0) return;
 
   const count = trashItems.length === 1 ? "1 item" : `${trashItems.length} items`;
-  if (!confirm(`Delete ${count} forever? You cannot undo this.`)) return;
+  if (!(await askConfirm(`Delete ${count} forever?`, "You cannot undo this.", { okLabel: "Empty trash", danger: true }))) return;
 
   const { data } = await postJSON('/empty_trash', {});
   if (data.status !== "emptied") {
@@ -5336,6 +5342,73 @@ function closeTrash() {
 
 
 // =====================
+// QUESTION WINDOW: askText() and askConfirm() replace the browser's prompt()
+// and confirm(), which block the page and look different in each browser
+// =====================
+
+let askResolve = null;
+
+function openAsk({ title, message = "", value = null, placeholder = "", okLabel = "OK", danger = false }) {
+  if (askResolve) finishAsk(null);   // a new question replaces an unanswered one
+
+  document.getElementById("askTitle").textContent = title;
+  const messageEl = document.getElementById("askMessage");
+  messageEl.textContent = message;
+  messageEl.classList.toggle("hidden", !message);
+
+  const input = document.getElementById("askInput");
+  input.classList.toggle("hidden", value === null);
+  input.value = value ?? "";
+  input.placeholder = placeholder;
+
+  const ok = document.getElementById("askOk");
+  ok.textContent = okLabel;
+  ok.classList.toggle("primary-btn", !danger);
+  ok.classList.toggle("danger-solid", danger);
+
+  document.getElementById("askModal").classList.remove("hidden");
+  if (value !== null) {
+    input.focus();
+    input.select();
+  } else {
+    // A question that deletes starts on Cancel, so Enter cannot delete by accident
+    (danger ? document.getElementById("askCancel") : ok).focus();
+  }
+  return new Promise(resolve => { askResolve = resolve; });
+}
+
+function answerAsk() {
+  const input = document.getElementById("askInput");
+  finishAsk(input.classList.contains("hidden") ? true : input.value);
+}
+
+function finishAsk(answer) {
+  document.getElementById("askModal").classList.add("hidden");
+  const resolve = askResolve;
+  askResolve = null;
+  resolve?.(answer);
+}
+
+document.getElementById("askInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    answerAsk();
+  }
+});
+
+// The typed text, trimmed; null when cancelled or left empty
+async function askText(title, value = "", options = {}) {
+  const answer = await openAsk({ title, value, ...options });
+  const text = typeof answer === "string" ? answer.trim() : "";
+  return text || null;
+}
+
+async function askConfirm(title, message = "", options = {}) {
+  return (await openAsk({ title, message, ...options })) === true;
+}
+
+
+// =====================
 // MODALS: × button, Esc, or a click on the backdrop closes them
 // =====================
 
@@ -5345,7 +5418,8 @@ const MODAL_CLOSERS = {
   visualModal: () => closeVisualPanel(),
   trashModal: () => closeTrash(),
   requestModal: () => closeRequestPreview(),
-  exportModal: () => closeExport()
+  exportModal: () => closeExport(),
+  askModal: () => finishAsk(null)
 };
 
 function closeModal(modal) {
@@ -5367,7 +5441,7 @@ document.querySelectorAll(".modal").forEach(modal => {
 
 document.addEventListener("keydown", (e) => {
   // While a window is open, only Esc (close it) applies
-  const openModal = [...document.querySelectorAll(".modal")].find(m => !m.classList.contains("hidden"));
+  const openModal = [...document.querySelectorAll(".modal")].filter(m => !m.classList.contains("hidden")).pop();
   if (openModal) {
     if (e.key === "Escape") closeModal(openModal);
     return;

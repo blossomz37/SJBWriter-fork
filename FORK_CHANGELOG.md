@@ -9,6 +9,46 @@ fork.
 
 ---
 
+## 2026-10-22: App question windows instead of browser pop-ups
+
+One commit (`0730d46`). **Files:** `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`.
+
+**Why:** The app used the browser's own `prompt()` and `confirm()` pop-ups
+16 times. They freeze the page, look different in every browser, cannot
+show a red "Delete" button, and cannot start with the current name filled
+in.
+
+**How it works:**
+
+- **One shared window.** `askText(title, value, options)` and
+  `askConfirm(title, message, options)` open one shared window
+  (`#askModal`) and return a Promise. `askText` gives the trimmed text, or
+  `null` when cancelled or empty. `askConfirm` gives `true` or `false`.
+  Options: `placeholder`, `okLabel`, and `danger`.
+- **Keys and clicks:** Enter answers. Esc, a click on the backdrop, or
+  Cancel cancels. A new question replaces an unanswered one.
+- **Every pop-up is replaced:**
+  - Create, rename, and delete for documents, folders, and projects.
+    Rename now starts with the current name.
+  - Delete model.
+  - The Books folder questions and the typed-path fallback.
+  - Empty trash.
+- **Delete questions** show the item's title, a red button, and "It moves to
+  the Trash. You can restore it from Project ⋯ → Trash…". Cancel has focus,
+  so pressing Enter cannot delete by accident.
+- **On top of other windows:** the window sits above other windows, for
+  example the Books folder question over Settings. The Esc handler now
+  closes the top open window, not the first one in the page.
+
+**How to check:**
+
+1. Click **+** in Writing. An app window asks for the title. Enter creates
+   the document.
+2. Delete a document. The red **Delete** button needs a click.
+
+---
+
 ## 2026-10-22: Housekeeping: tests, requirements, dead code, narrow windows
 
 Five commits.

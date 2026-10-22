@@ -1593,6 +1593,46 @@ body.zen .zen-exit {
   margin-right: auto;
 }
 
+/* ===================== QUESTION WINDOW (askText / askConfirm) ===================== */
+.ask-modal {
+  z-index: 10000;   /* above a window it was opened from, such as Settings */
+}
+
+.ask-content {
+  width: min(420px, 92vw);
+  height: auto;
+}
+
+.ask-message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+}
+
+.ask-input {
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.ask-content .modal-actions {
+  margin-top: 8px;
+}
+
+/* The main button of a question that deletes */
+.danger-solid,
+.danger-solid:hover {
+  background-color: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.danger-solid:hover {
+  filter: brightness(1.08);
+}
+
 /* ===================== EXPORT MANUSCRIPT ===================== */
 .export-content {
   width: min(480px, 94vw);
