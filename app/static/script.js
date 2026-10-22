@@ -1603,10 +1603,15 @@ function toggleProjectMenu(e) {
   trashItem.textContent = "Trash…";
   trashItem.onclick = () => openTrash();
 
+  const exportItem = document.createElement("div");
+  exportItem.textContent = "Export manuscript…";
+  exportItem.onclick = () => openExport();
+
   menu.appendChild(create);
   menu.appendChild(rename);
   menu.appendChild(duplicateProjectItem);
   menu.appendChild(del);
+  menu.appendChild(exportItem);
   menu.appendChild(trashItem);
 
   document.body.appendChild(menu);
@@ -3838,9 +3843,19 @@ function toggleMenu(row, section, filename) {
   duplicate.textContent = "Duplicate";
   duplicate.onclick = () => duplicateDocument(section, filename);
 
+  const exportMd = document.createElement('div');
+  exportMd.textContent = "Export as Markdown";
+  exportMd.onclick = () => exportDocument(section, filename, "md");
+
+  const exportWord = document.createElement('div');
+  exportWord.textContent = "Export as Word";
+  exportWord.onclick = () => exportDocument(section, filename, "docx");
+
   menu.appendChild(rename);
   menu.appendChild(duplicate);
   menu.appendChild(history);
+  menu.appendChild(exportMd);
+  menu.appendChild(exportWord);
   menu.appendChild(del);
 
   // --- POSITIONING LOGIC ---
@@ -5206,6 +5221,94 @@ function closeRequestPreview() {
 
 
 // =====================
+// EXPORT: one document, or the Writing section as one manuscript
+// =====================
+
+// POST, then save the reply as a file with the name the server gives
+async function downloadExport(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    showToast(data.error || "Export failed");
+    return false;
+  }
+  const name = (res.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/)?.[1] || "export";
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(await res.blob());
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  showToast(`Exported ${name}`, "info");
+  return true;
+}
+
+async function exportDocument(section, filename, format) {
+  if (isDirty && currentFile.section === section && currentFile.filename === filename) {
+    await saveCurrentFile();
+  }
+  await downloadExport('/export_document', { section, filename, format });
+}
+
+function openExport() {
+  const project = (projects || []).find(p => p.id === currentProject);
+  const ticked = collectFilenames(state.project.writing || []).filter(f => selected.writing.has(f)).length;
+  document.getElementById("exportHint").textContent =
+    `The Writing section of “${project?.title || currentProject}”, in sidebar order.`;
+  document.getElementById("exportTickedCount").textContent = ticked;
+  document.getElementById("exportTicked").disabled = ticked === 0;
+
+  // The writer's last choices
+  const saved = readPref("sjb_export", {});
+  const pick = (name, value) => {
+    const input = document.querySelector(`input[name="${name}"][value="${value}"]`);
+    if (input && !input.disabled) input.checked = true;
+  };
+  pick("exportFormat", saved.format || "docx");
+  pick("exportWhich", ticked ? saved.which || "all" : "all");
+  document.getElementById("exportHeadings").checked = saved.headings ?? true;
+  document.getElementById("exportPageBreaks").checked = saved.pageBreaks ?? true;
+
+  document.getElementById("exportModal").classList.remove("hidden");
+}
+
+async function runExport(button) {
+  const options = {
+    format: document.querySelector('input[name="exportFormat"]:checked').value,
+    which: document.querySelector('input[name="exportWhich"]:checked').value,
+    headings: document.getElementById("exportHeadings").checked,
+    pageBreaks: document.getElementById("exportPageBreaks").checked
+  };
+  writePref("sjb_export", options);
+
+  if (isDirty) await saveCurrentFile();
+  button.disabled = true;
+  try {
+    const done = await downloadExport('/export_manuscript', {
+      format: options.format,
+      headings: options.headings,
+      pageBreaks: options.pageBreaks,
+      only: options.which === "ticked"
+        ? collectFilenames(state.project.writing || []).filter(f => selected.writing.has(f))
+        : null
+    });
+    if (done) closeExport();
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function closeExport() {
+  document.getElementById("exportModal").classList.add("hidden");
+}
+
+
+// =====================
 // TRASH: deleted documents and projects, with Restore
 // =====================
 
@@ -5341,7 +5444,8 @@ const MODAL_CLOSERS = {
   historyModal: () => closeHistory(),
   visualModal: () => closeVisualPanel(),
   trashModal: () => closeTrash(),
-  requestModal: () => closeRequestPreview()
+  requestModal: () => closeRequestPreview(),
+  exportModal: () => closeExport()
 };
 
 function closeModal(modal) {
