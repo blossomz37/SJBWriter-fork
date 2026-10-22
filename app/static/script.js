@@ -3526,7 +3526,12 @@ function toggleMenu(row, section, filename) {
     }
   };
 
+  const history = document.createElement('div');
+  history.textContent = "Version history…";
+  history.onclick = () => openHistory(section, filename);
+
   menu.appendChild(rename);
+  menu.appendChild(history);
   menu.appendChild(del);
 
   // --- POSITIONING LOGIC ---
@@ -3744,6 +3749,133 @@ function togglePreview() {
 preview.addEventListener("dblclick", () => setPreview(false));
 
 // =====================
+// VERSION HISTORY
+// =====================
+
+let historyTarget = null;      // { section, filename } shown in the window
+let historySelectedId = null;
+
+async function openHistory(section, filename) {
+  // Save first so the newest text is on disk
+  if (isDirty && currentFile.section === section && currentFile.filename === filename) {
+    await saveCurrentFile();
+  }
+
+  historyTarget = { section, filename };
+  historySelectedId = null;
+  document.getElementById("historyRestoreBtn").disabled = true;
+
+  const preview = document.getElementById("historyPreview");
+  preview.textContent = "";
+  preview.style.fontFamily = editor.style.fontFamily;
+
+  const res = await fetch('/file_history', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ section, filename })
+  });
+  const data = await res.json();
+  const versions = data.versions || [];
+
+  const list = document.getElementById("historyList");
+  list.innerHTML = "";
+
+  if (versions.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "history-empty";
+    empty.textContent =
+      "No earlier versions yet. The app keeps the old text each time you save a change, at most every 5 minutes.";
+    list.appendChild(empty);
+  }
+
+  for (const version of versions) {
+    const row = document.createElement("div");
+    row.className = "history-row";
+
+    const when = document.createElement("span");
+    when.textContent = new Date(version.time).toLocaleString([], {
+      month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+    });
+
+    const meta = document.createElement("span");
+    meta.className = "history-meta";
+    meta.textContent = `${version.words.toLocaleString()} words · ${timeAgo(new Date(version.time))}`;
+
+    row.append(when, meta);
+    row.onclick = () => selectVersion(version.id, row);
+    list.appendChild(row);
+  }
+
+  document.getElementById("historyModal").classList.remove("hidden");
+  list.querySelector(".history-row")?.click();
+}
+
+async function selectVersion(id, row) {
+  historySelectedId = id;
+  document.querySelectorAll(".history-row").forEach(r => {
+    r.classList.toggle("active", r === row);
+  });
+
+  const res = await fetch('/file_version', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...historyTarget, id })
+  });
+  const data = await res.json();
+
+  document.getElementById("historyPreview").textContent = data.content || "";
+  document.getElementById("historyRestoreBtn").disabled = false;
+}
+
+async function restoreSelectedVersion() {
+  if (!historyTarget || !historySelectedId) return;
+  const { section, filename } = historyTarget;
+
+  const res = await fetch('/restore_version', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ section, filename, id: historySelectedId })
+  });
+  const data = await res.json();
+
+  if (data.status !== "restored") {
+    alert(data.error || "Restore failed");
+    return;
+  }
+
+  fileCache[`${section}/${filename}`] = data.content;
+
+  const isGlobal = section === "prompts" || section === "system";
+  const item = findFileItemInTree(
+    (isGlobal ? state.global[section] : state.project[section]) || [],
+    filename
+  );
+  if (item) {
+    item.title = data.title;
+    item.wordCount = data.wordCount;
+  }
+
+  if (currentFile.section === section && currentFile.filename === filename) {
+    titleInput.value = data.title || "";
+    editor.value = data.content;
+    isDirty = false;
+    lastSavedAt = Date.now();
+    updateWordCount();
+    updateTokenMeter();
+  }
+
+  await renderLists();
+  closeHistory();
+}
+
+function closeHistory() {
+  document.getElementById("historyModal").classList.add("hidden");
+  historyTarget = null;
+  historySelectedId = null;
+}
+
+
+// =====================
 // KEYBOARD SHORTCUTS (⌘ on Mac, Ctrl elsewhere)
 // =====================
 // ⌘E preview (same key as Obsidian) · ⌘S save · ⌘Enter generate
@@ -3751,6 +3883,10 @@ preview.addEventListener("dblclick", () => setPreview(false));
 
 document.addEventListener("keydown", (e) => {
   if (!document.getElementById("settingsModal").classList.contains("hidden")) return;
+  if (!document.getElementById("historyModal").classList.contains("hidden")) {
+    if (e.key === "Escape") closeHistory();
+    return;
+  }
 
   const mod = (e.metaKey || e.ctrlKey) && !e.altKey;
   const key = e.key.toLowerCase();

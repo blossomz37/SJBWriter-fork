@@ -1,9 +1,12 @@
 from flask import Flask, render_template, request, jsonify
 from flask import Response
 import os
+import re
 import json
 import shutil
+import tempfile
 import requests
+from datetime import datetime
 
 # ===================== APP SETUP =====================
 app = Flask(__name__)
@@ -32,12 +35,11 @@ def ensure_structure():
 
     # Global state
     if not os.path.exists(GLOBAL_STATE):
-        with open(GLOBAL_STATE, "w") as f:
-            json.dump({
-                "prompts": [],
-                "system": [],
-                "last_opened_global": {}
-            }, f, indent=2)
+        save_json(GLOBAL_STATE, {
+            "prompts": [],
+            "system": [],
+            "last_opened_global": {}
+        })
 
     project_dir = get_project_dir()
     project_meta_path = os.path.join(project_dir, "project.json")
@@ -78,8 +80,56 @@ def load_json(path):
 
 
 def save_json(path, data):
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
+    # Write to a temp file in the same folder, then swap it in,
+    # so a crash mid-save never leaves a half-written file
+    folder = os.path.dirname(path) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=folder, prefix=".tmp-", suffix=".json")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(tmp_path, 0o644)
+        os.replace(tmp_path, path)
+    except BaseException:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+
+
+# ===================== SAFETY HELPERS =====================
+
+SECTIONS = {"prompts", "system", "background", "writing"}
+
+
+def is_safe_name(name):
+    """One file or folder name: no path separators, no '..', no leading dot."""
+    return (
+        isinstance(name, str)
+        and name.strip() != ""
+        and "/" not in name
+        and "\\" not in name
+        and ".." not in name
+        and not name.startswith(".")
+    )
+
+
+@app.before_request
+def reject_unsafe_names():
+    # Every route takes its section, file, and project names from JSON;
+    # refuse anything that could point outside the data folders
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return None
+
+    if data.get("section") and data["section"] not in SECTIONS:
+        return jsonify({"error": "Invalid section"}), 400
+
+    for key in ("filename", "project", "current_project"):
+        if data.get(key) and not is_safe_name(data[key]):
+            return jsonify({"error": f"Invalid {key}"}), 400
+
+    return None
 
 
 def count_words(text):
@@ -142,7 +192,10 @@ def get_current_project():
 
 
 def get_project_dir():
-    return os.path.join(PROJECTS_DIR, get_current_project())
+    project = get_current_project()
+    if not is_safe_name(project):
+        project = "default"
+    return os.path.join(PROJECTS_DIR, project)
 
 
 def get_project_state():
@@ -185,6 +238,9 @@ def get_base_path(section):
     return os.path.join(get_project_dir(), section)
 
 def load_file_content(section, filename):
+    if section not in SECTIONS or not is_safe_name(filename):
+        return ""
+
     base_path = get_base_path(section)
     file_path = os.path.join(base_path, filename)
 
@@ -196,6 +252,79 @@ def load_file_content(section, filename):
         return ""
 
     return data.get("content", "")
+
+
+# ===================== VERSION HISTORY & TRASH =====================
+# Each section folder keeps hidden .history/<file>/ and .trash/ folders.
+
+HISTORY_MIN_INTERVAL = 5 * 60   # seconds between automatic versions of one file
+HISTORY_KEEP = 50               # versions kept per file
+VERSION_ID = re.compile(r"^\d{8}-\d{6}(-\d+)?$")   # timestamp, plus -2, -3… within one second
+
+
+def version_time(version_id):
+    return datetime.strptime(version_id[:15], "%Y%m%d-%H%M%S")
+
+
+def history_dir(section, filename):
+    stem = filename[:-5] if filename.endswith(".json") else filename
+    return os.path.join(get_base_path(section), ".history", stem)
+
+
+def list_versions(section, filename):
+    folder = history_dir(section, filename)
+    if not os.path.isdir(folder):
+        return []
+    return sorted(
+        f[:-5] for f in os.listdir(folder)
+        if f.endswith(".json") and VERSION_ID.match(f[:-5])
+    )
+
+
+def snapshot_file(section, filename, force=False):
+    """Copy the file as it is now into its history before it changes."""
+    src = os.path.join(get_base_path(section), filename)
+    if not os.path.exists(src):
+        return
+
+    versions = list_versions(section, filename)
+    folder = history_dir(section, filename)
+    now = datetime.now()
+
+    if versions:
+        if not force and (now - version_time(versions[-1])).total_seconds() < HISTORY_MIN_INTERVAL:
+            return
+
+        # Nothing new to keep if the text matches the newest version
+        newest = load_json(os.path.join(folder, f"{versions[-1]}.json")) or {}
+        current = load_json(src) or {}
+        if newest.get("content") == current.get("content"):
+            return
+
+    base_id = now.strftime("%Y%m%d-%H%M%S")
+    version_id, n = base_id, 1
+    while version_id in versions:
+        n += 1
+        version_id = f"{base_id}-{n}"
+
+    os.makedirs(folder, exist_ok=True)
+    shutil.copyfile(src, os.path.join(folder, f"{version_id}.json"))
+
+    # Drop the oldest versions beyond the limit
+    for old in versions[:max(0, len(versions) + 1 - HISTORY_KEEP)]:
+        os.remove(os.path.join(folder, f"{old}.json"))
+
+
+def move_to_trash(path, trash_root):
+    """Move a file or folder into trash_root instead of deleting it."""
+    os.makedirs(trash_root, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    name = os.path.basename(path)
+    dest, n = os.path.join(trash_root, f"{stamp}-{name}"), 1
+    while os.path.exists(dest):
+        n += 1
+        dest = os.path.join(trash_root, f"{stamp}-{n}-{name}")
+    shutil.move(path, dest)
 
 def find_file_item(items, filename):
 
@@ -685,8 +814,7 @@ def api_get_models():
             order_changed = True
 
         if order_changed:
-            with open(order_file, "w") as f:
-                json.dump(saved_order, f, indent=2)
+            save_json(order_file, saved_order)
 
         order_positions = {
             model_id: index
@@ -943,8 +1071,7 @@ def api_move_model():
             saved_order[first_position]
         )
 
-        with open(order_file, "w") as f:
-            json.dump(saved_order, f, indent=2)
+        save_json(order_file, saved_order)
 
     else:
         existing = models.get(target_source, [])
@@ -1047,7 +1174,8 @@ def api_get_projects():
 
         project_dir = os.path.join(PROJECTS_DIR, folder)
 
-        if not os.path.isdir(project_dir):
+        # Skip hidden folders such as .trash
+        if not os.path.isdir(project_dir) or folder.startswith("."):
             continue
 
         meta_path = os.path.join(project_dir, "project.json")
@@ -1221,6 +1349,7 @@ def api_delete_project():
     all_projects = [
         p for p in os.listdir(PROJECTS_DIR)
         if os.path.isdir(os.path.join(PROJECTS_DIR, p))
+        and not p.startswith(".")
     ]
 
     # Prevent deleting final project
@@ -1229,9 +1358,8 @@ def api_delete_project():
             "error": "At least one project must exist"
         }), 400
 
-    import shutil
-
-    shutil.rmtree(project_dir)
+    # Move the whole project to Projects/.trash instead of deleting it
+    move_to_trash(project_dir, os.path.join(PROJECTS_DIR, ".trash"))
 
     # Remove from recents
     recent = app_state.get("recent_projects", [])
@@ -1375,12 +1503,11 @@ def api_create_item():
         return jsonify({"error": "File already exists"}), 400
 
     # Create file
-    with open(file_path, "w") as f:
-        json.dump({
-            "id": filename.replace(".json", ""),
-            "title": title,
-            "content": ""
-        }, f, indent=2)
+    save_json(file_path, {
+        "id": filename.replace(".json", ""),
+        "title": title,
+        "content": ""
+    })
 
     # Update state
     state = load_json(state_file)
@@ -1427,16 +1554,14 @@ def api_create_item_in_folder():
             "error": "File already exists"
         }), 400
 
-    with open(file_path, "w") as f:
-
-        json.dump({
-            "id": filename.replace(
-                ".json",
-                ""
-            ),
-            "title": title,
-            "content": ""
-        }, f, indent=2)
+    save_json(file_path, {
+        "id": filename.replace(
+            ".json",
+            ""
+        ),
+        "title": title,
+        "content": ""
+    })
 
     state_file = get_state_file(section)
 
@@ -1492,13 +1617,17 @@ def api_save_file():
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
-    with open(file_path, "w") as f:
-        json.dump({
-            "id": filename.replace(".json", ""),
-            "title": title,
-            "content": content,
-            "wordCount": word_count
-        }, f, indent=2)
+    # Keep the previous text as a version before overwriting it
+    previous = load_json(file_path) or {}
+    if previous.get("content") and previous.get("content") != content:
+        snapshot_file(section, filename)
+
+    save_json(file_path, {
+        "id": filename.replace(".json", ""),
+        "title": title,
+        "content": content,
+        "wordCount": word_count
+    })
 
     # Update last opened + title in state
     state_file = get_state_file(section)
@@ -1628,8 +1757,8 @@ def api_delete_item():
     if not os.path.exists(file_path):
         return jsonify({"error": "File not found"}), 404
 
-    # Delete file
-    os.remove(file_path)
+    # Move the file to the section's trash instead of deleting it
+    move_to_trash(file_path, os.path.join(base_path, ".trash"))
 
     # Update state
     state = load_json(state_file)
@@ -1702,6 +1831,12 @@ def api_rename_item():
     save_json(new_path, content)
 
     os.remove(old_path)
+
+    # Version history follows the file to its new name
+    old_history = history_dir(section, filename)
+    new_history = history_dir(section, new_filename)
+    if os.path.isdir(old_history) and not os.path.exists(new_history):
+        os.rename(old_history, new_history)
 
     # Update state
     state = load_json(state_file)
@@ -1820,6 +1955,106 @@ def api_delete_folder():
 
     return jsonify({
         "status": "deleted"
+    })
+
+
+# ----- VERSION HISTORY -----
+
+@app.route('/file_history', methods=['POST'])
+def api_file_history():
+    ensure_structure()
+
+    data = request.json
+    section = data.get("section")
+    filename = data.get("filename")
+
+    if not section or not filename:
+        return jsonify({"error": "Missing data"}), 400
+
+    versions = []
+    for version_id in reversed(list_versions(section, filename)):
+        version = load_json(
+            os.path.join(history_dir(section, filename), f"{version_id}.json")
+        ) or {}
+        versions.append({
+            "id": version_id,
+            "time": version_time(version_id).isoformat(),
+            "title": version.get("title", ""),
+            "words": count_words(version.get("content", ""))
+        })
+
+    return jsonify({"versions": versions})
+
+
+@app.route('/file_version', methods=['POST'])
+def api_file_version():
+    ensure_structure()
+
+    data = request.json
+    section = data.get("section")
+    filename = data.get("filename")
+    version_id = data.get("id", "")
+
+    if not section or not filename or not VERSION_ID.match(version_id):
+        return jsonify({"error": "Missing data"}), 400
+
+    path = os.path.join(history_dir(section, filename), f"{version_id}.json")
+    if not os.path.exists(path):
+        return jsonify({"error": "Version not found"}), 404
+
+    version = load_json(path) or {}
+    return jsonify({
+        "title": version.get("title", ""),
+        "content": version.get("content", "")
+    })
+
+
+@app.route('/restore_version', methods=['POST'])
+def api_restore_version():
+    ensure_structure()
+
+    data = request.json
+    section = data.get("section")
+    filename = data.get("filename")
+    version_id = data.get("id", "")
+
+    if not section or not filename or not VERSION_ID.match(version_id):
+        return jsonify({"error": "Missing data"}), 400
+
+    file_path = os.path.join(get_base_path(section), filename)
+    version_path = os.path.join(history_dir(section, filename), f"{version_id}.json")
+
+    if not os.path.exists(file_path) or not os.path.exists(version_path):
+        return jsonify({"error": "Version not found"}), 404
+
+    version = load_json(version_path) or {}
+    content = version.get("content", "")
+    title = version.get("title") or (load_json(file_path) or {}).get("title", "")
+    word_count = count_words(content)
+
+    # Keep the current text as a version too, so a restore can be undone
+    snapshot_file(section, filename, force=True)
+
+    save_json(file_path, {
+        "id": filename.replace(".json", ""),
+        "title": title,
+        "content": content,
+        "wordCount": word_count
+    })
+
+    state_file = get_state_file(section)
+    state = load_json(state_file)
+    item = find_file_item(state.get(section, []), filename)
+    if item:
+        item["title"] = title
+        item["wordCount"] = word_count
+    save_json(state_file, state)
+
+    return jsonify({
+        "status": "restored",
+        "title": title,
+        "content": content,
+        "wordCount": word_count
     })
 
 
