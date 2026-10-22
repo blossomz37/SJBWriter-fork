@@ -9,6 +9,66 @@ fork.
 
 ---
 
+## 2026-10-22: Page script split into nine files, plus a browser smoke test
+
+Two commits: `3510505` (smoke test) and `769a32d` (split). **Files:**
+`app/static/js/*.js` (new), `app/static/script.js` (removed),
+`app/templates/index.html`, `tests/browser/smoke.mjs`, and `README.md`.
+
+**Why:** `script.js` had grown to 5,842 lines, holding 184 functions. As on
+the server, each file now has one job.
+
+**The new map** (`app/static/js/`, in load order):
+
+| File | What it does |
+|---|---|
+| `core.js` | Shared state and the small helpers every file uses (toasts, icons, preferences, tree lookups). |
+| `appearance.js` | Light/dark mode, accent colors, fonts, the Visual layout window. |
+| `models.js` | Manage Models, the model pickers, the OpenRouter model check. |
+| `sidebar.js` | The document lists: render, tick, sort, fold, drag, move, menus, panel widths. |
+| `editor.js` | The open document: open, save, formatting, preview, zen, status bar, toolbars, outside changes. |
+| `ai.js` | Setup panel, Generate, markers, generation settings, token meter, cost, request preview. |
+| `projects.js` | Project menu and list, loading a project, Trash, Export. |
+| `windows.js` | Question windows, closing rules, Version history, Settings, Books folder. |
+| `startup.js` | Keyboard shortcuts, the panel-size watcher, the start of the page. |
+
+**Why plain script files and not JavaScript modules:**
+- The page has 83 inline `onclick` handlers that call global functions.
+- Plain `<script>` files loaded in order share one global scope, exactly like
+  the single file did. So those handlers keep working, and no build step is
+  needed.
+- JavaScript modules would hide the functions from the handlers.
+
+**How it was kept safe:**
+- **The smoke test came first.** `tests/browser/smoke.mjs` was committed
+  before the split, and it passed on the old file. It is optional, because it
+  needs Node and Playwright; the README says how to run it.
+  - It runs the app on a throwaway library and fakes the AI reply.
+  - It uses each main feature once: open, edit, save with ⌘S, create a new
+    document, generate, every window, the Markdown preview, folding the
+    sidebar, dark mode, and phone width.
+  - It fails on any page error or browser pop-up.
+  - A test run with one function renamed on purpose failed, so the test
+    really catches breakage.
+- **A pure move:** a script cut the file along feature lines, using a
+  JavaScript parser. A second check confirmed that all 271 top-level
+  statements exist exactly once, word for word.
+- **A load-order check.** In plain scripts, a function is only "hoisted"
+  inside its own file, so code that runs while a file loads must use names
+  from earlier files only. The check proved this holds.
+- **One deliberate placement:** the panel-size watcher (`ResizeObserver`)
+  went to `startup.js`. It can fire as soon as it is attached, so it must
+  load after `ai.js`.
+- **Results:** the smoke test passes after the split. The question-window,
+  export, and AI-preview browser checks also pass, on a copy of real data.
+
+**Still large:** `sidebar.js` (about 1,600 lines) and `models.js` (about
+1,100) each hold one very long function (`renderSection`, about 420 lines,
+and `renderModelsManager`, about 390). Splitting those is real rewriting,
+not moving, and is left for when a feature needs it.
+
+---
+
 ## 2026-10-22: Server code split into small files
 
 One commit (`4d29a4f`). **Files:** `app/app.py` and the new `app/sjb/`
