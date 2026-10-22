@@ -27,32 +27,10 @@
   <!-- ===================== LEFT PANEL: CONTEXT BUILDER ===================== -->
   <div class="left">
 
-  <div class="section-group">
-    <!-- ---------- APP HEADER / GLOBAL CONTROLS ---------- -->
-    <div class="header-row">
-      <h2>Your Writing Helper</h2>
-      <button type="button" class="icon-btn ghost-btn gear-btn tip-end" onclick="openSettings()" data-tip="Settings" aria-label="Settings"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg></button>
-    </div>
-    <!-- ---------- GLOBAL CONTEXT (System + Prompts) ---------- -->
-    <div class="section" data-weight="system">
-      <h3 class="section-header" draggable="true" data-section="system">
-        <button type="button" class="section-toggle" onclick="toggleSectionFold('system')" aria-expanded="true" aria-label="Fold or unfold System"><svg class="icon fold-icon" aria-hidden="true"><use href="#i-chevron-down"/></svg><span>System</span></button>
-        <button type="button" class="icon-btn" onclick="createNew('system')" data-tip="New file" aria-label="New file"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
-        <button type="button" class="icon-btn" onclick="createFolder('system')" data-tip="New folder" aria-label="New folder"><svg class="icon" aria-hidden="true"><use href="#i-folder-plus"/></svg></button>
-        <button type="button" class="icon-btn sort-btn tip-end" data-sort-section="system" onclick="cycleSort('system')" data-tip="Sort: My order" aria-label="Sort: My order"><svg class="icon" aria-hidden="true"><use href="#i-arrow-up-down"/></svg></button>
-      </h3>
-      <div id="systemList"></div>
-    </div>
-
-    <div class="section" data-weight="prompts">
-      <h3 class="section-header" draggable="true" data-section="prompts">
-        <button type="button" class="section-toggle" onclick="toggleSectionFold('prompts')" aria-expanded="true" aria-label="Fold or unfold Prompts"><svg class="icon fold-icon" aria-hidden="true"><use href="#i-chevron-down"/></svg><span>Prompts</span></button>
-        <button type="button" class="icon-btn" onclick="createNew('prompts')" data-tip="New file" aria-label="New file"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
-        <button type="button" class="icon-btn" onclick="createFolder('prompts')" data-tip="New folder" aria-label="New folder"><svg class="icon" aria-hidden="true"><use href="#i-folder-plus"/></svg></button>
-        <button type="button" class="icon-btn sort-btn tip-end" data-sort-section="prompts" onclick="cycleSort('prompts')" data-tip="Sort: My order" aria-label="Sort: My order"><svg class="icon" aria-hidden="true"><use href="#i-arrow-up-down"/></svg></button>
-      </h3>
-      <div id="promptsList"></div>
-    </div>
+  <!-- ---------- APP HEADER / GLOBAL CONTROLS ---------- -->
+  <div class="header-row">
+    <h2>Your Writing Helper</h2>
+    <button type="button" class="icon-btn ghost-btn gear-btn tip-end" onclick="openSettings()" data-tip="Settings" aria-label="Settings"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg></button>
   </div>
 
   <div class="section-group">
@@ -152,6 +130,12 @@
     <!-- Controls + Status -->
     <div class="controls">
 
+      <!-- What the AI will get; opens the AI setup panel -->
+      <button type="button" id="aiSummaryChip" class="ai-chip tip-up tip-start" onclick="toggleAiPanel()" data-tip="AI setup (⌘⌥\)" aria-label="AI setup" aria-expanded="false">
+        <svg class="icon" aria-hidden="true"><use href="#i-sliders-horizontal"/></svg>
+        <span id="aiSummaryText">No rules · No prompt</span>
+      </button>
+
       <div class="footer-actions">
         <select id="footerModelName" aria-label="Active model">
           <option value="">-- Select Model --</option>
@@ -168,6 +152,35 @@
     </div>
   </div>
 </div>
+
+<!-- ===================== RIGHT PANEL: AI SETUP (System + Prompts) ===================== -->
+<aside id="aiPanel" class="ai-panel" aria-label="AI setup">
+  <div class="ai-panel-header">
+    <h2>AI setup</h2>
+    <button type="button" class="icon-btn ghost-btn tip-end" onclick="setAiPanelOpen(false)" data-tip="Close (⌘⌥\)" aria-label="Close AI setup"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="section-group ai-group">
+    <div class="section" data-weight="system">
+      <h3 class="section-header" draggable="true" data-section="system">
+        <button type="button" class="section-toggle" onclick="toggleSectionFold('system')" aria-expanded="true" aria-label="Fold or unfold System"><svg class="icon fold-icon" aria-hidden="true"><use href="#i-chevron-down"/></svg><span>System</span></button>
+        <button type="button" class="icon-btn" onclick="createNew('system')" data-tip="New file" aria-label="New file"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        <button type="button" class="icon-btn" onclick="createFolder('system')" data-tip="New folder" aria-label="New folder"><svg class="icon" aria-hidden="true"><use href="#i-folder-plus"/></svg></button>
+        <button type="button" class="icon-btn sort-btn tip-end" data-sort-section="system" onclick="cycleSort('system')" data-tip="Sort: My order" aria-label="Sort: My order"><svg class="icon" aria-hidden="true"><use href="#i-arrow-up-down"/></svg></button>
+      </h3>
+      <div id="systemList"></div>
+    </div>
+
+    <div class="section" data-weight="prompts">
+      <h3 class="section-header" draggable="true" data-section="prompts">
+        <button type="button" class="section-toggle" onclick="toggleSectionFold('prompts')" aria-expanded="true" aria-label="Fold or unfold Prompts"><svg class="icon fold-icon" aria-hidden="true"><use href="#i-chevron-down"/></svg><span>Prompts</span></button>
+        <button type="button" class="icon-btn" onclick="createNew('prompts')" data-tip="New file" aria-label="New file"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        <button type="button" class="icon-btn" onclick="createFolder('prompts')" data-tip="New folder" aria-label="New folder"><svg class="icon" aria-hidden="true"><use href="#i-folder-plus"/></svg></button>
+        <button type="button" class="icon-btn sort-btn tip-end" data-sort-section="prompts" onclick="cycleSort('prompts')" data-tip="Sort: My order" aria-label="Sort: My order"><svg class="icon" aria-hidden="true"><use href="#i-arrow-up-down"/></svg></button>
+      </h3>
+      <div id="promptsList"></div>
+    </div>
+  </div>
+</aside>
 
 </div>
 
