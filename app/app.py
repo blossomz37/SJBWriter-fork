@@ -45,6 +45,8 @@ def ensure_structure():
 
     project_dir = get_project_dir()
     project_meta_path = os.path.join(project_dir, "project.json")
+    # A fresh install has no project folder yet
+    os.makedirs(project_dir, exist_ok=True)
 
     if not os.path.exists(project_meta_path):
         save_json(project_meta_path, {
