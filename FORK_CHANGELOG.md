@@ -9,6 +9,27 @@ fork.
 
 ---
 
+## 2026-10-22: Stray `\n` text removed from five EPBM prompts
+
+One commit (`f752d9a`). **Files:** `Global/prompts/epbm-2-characters`,
+`epbm-5-chapter-draft`, `epbm-6-chapter-editing-plan`,
+`epbm-7-chapter-final`, and `epbm-9-review-refinement` (`.md`; they were
+`.json` in the original).
+
+**Why:** These starter prompts held the two characters `\n` as plain text,
+29 times in all (16 in EPBM 6). The editor and the AI request showed them as
+written, for example "…narrative arc.\n". The same text is in the original
+JSON files, as `\\n` in the JSON. It was most likely pasted in from
+somewhere that already showed line breaks as `\n`.
+
+**How:** Each `\n` sat just before a real line break, or at the very end of
+the text. It was deleted, together with any spaces next to it. No other
+text changed, and the line layout stays the same.
+
+**How to check:** Open EPBM 6. No `\n` shows in the text.
+
+---
+
 ## 2026-10-22: Export to Markdown and Word
 
 One commit (`1179568`). **Files:** `app/app.py`, `app/static/script.js`,
