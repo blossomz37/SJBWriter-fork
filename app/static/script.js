@@ -198,6 +198,12 @@ async function changeEditorSize(size) {
 }
 
 
+// Inline icon from the sprite in _icons.html
+function iconSvg(name) {
+  return `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+}
+
+
 // TOKEN ESTIMATE
 function estimateTokens(text) {
   return Math.floor(text.length / 4);
@@ -1662,10 +1668,8 @@ async function generate() {
   document.getElementById("loadingIndicator").style.display = "block";
   await requestWakeLock();
 
-  const button = document.querySelector(".controls button");
-  const originalText = button.innerText;
-
-  button.innerText = "Generating...";
+  const button = document.getElementById("generateBtn");
+  button.classList.add("is-busy");
   button.disabled = true;
 
 // Snapshot before generation
@@ -1760,7 +1764,7 @@ updateUndoButton();
     currentAbortController = null;
     releaseWakeLock();
     document.getElementById("stopGenerateBtn").disabled = true;
-    button.innerText = originalText;
+    button.classList.remove("is-busy");
     button.disabled = false;
     document.getElementById("loadingIndicator").style.display = "none";
   }
@@ -2554,7 +2558,8 @@ function renderSection(
 
       // Arrow (collapse/expand toggle)
       const folderArrow = document.createElement("span");
-      folderArrow.textContent = item.collapsed ? "▶" : "▼";
+      folderArrow.className = "folder-arrow";
+      folderArrow.innerHTML = iconSvg(item.collapsed ? "chevron-right" : "chevron-down");
       folderArrow.style.cursor = "pointer";
       folderArrow.style.flexShrink = "0";
       folderArrow.onclick = async () => {
@@ -2643,7 +2648,7 @@ function renderSection(
 
       const menuBtn =
         document.createElement("span");
-      menuBtn.textContent = "⋯";
+      menuBtn.innerHTML = iconSvg("ellipsis");
       menuBtn.classList.add("menu-btn");
       menuBtn.onclick = (e) => {
         e.stopPropagation();
@@ -2852,7 +2857,7 @@ function renderSection(
 
     // Ellipsis Button
     const menuBtn = document.createElement('span');
-    menuBtn.textContent = "⋯";
+    menuBtn.innerHTML = iconSvg("ellipsis");
     menuBtn.classList.add("menu-btn");
 
     menuBtn.onclick = (e) => {

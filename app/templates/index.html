@@ -19,6 +19,7 @@
       href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 <body>
+{% include "_icons.html" %}
 
 <!-- ===================== APP CONTAINER ===================== -->
 <div class="container">
@@ -30,14 +31,14 @@
     <!-- ---------- APP HEADER / GLOBAL CONTROLS ---------- -->
     <div class="header-row">
       <h2>Your Writing Helper</h2>
-      <button class="gear-btn" onclick="openSettings()">⚙️</button>
+      <button type="button" class="icon-btn ghost-btn gear-btn tip-end" onclick="openSettings()" data-tip="Settings" aria-label="Settings"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg></button>
     </div>
     <!-- ---------- GLOBAL CONTEXT (Prompts + System) ---------- -->
     <div class="section" data-weight="prompts">
       <h3>
         Prompts
-        <button onclick="createNew('prompts')">+</button>
-        <button onclick="createFolder('prompts')">📁</button>
+        <button type="button" class="icon-btn" onclick="createNew('prompts')" data-tip="New file" aria-label="New file"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        <button type="button" class="icon-btn" onclick="createFolder('prompts')" data-tip="New folder" aria-label="New folder"><svg class="icon" aria-hidden="true"><use href="#i-folder-plus"/></svg></button>
       </h3>
       <div id="promptsList"></div>
     </div>
@@ -45,8 +46,8 @@
     <div class="section" data-weight="system">
       <h3>
         System
-        <button onclick="createNew('system')">+</button>
-        <button onclick="createFolder('system')">📁</button>
+        <button type="button" class="icon-btn" onclick="createNew('system')" data-tip="New file" aria-label="New file"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        <button type="button" class="icon-btn" onclick="createFolder('system')" data-tip="New folder" aria-label="New folder"><svg class="icon" aria-hidden="true"><use href="#i-folder-plus"/></svg></button>
       </h3>
       <div id="systemList"></div>
     </div>
@@ -63,13 +64,14 @@
             Project: Default
           </h2>
 
-          <span class="dropdown-arrow">▼</span>
+          <span class="dropdown-arrow"><svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></span>
 
         </div>
 
-      <span class="menu-btn"
-            onclick="toggleProjectMenu(event)">
-        ⋯
+      <span class="menu-btn tip-end"
+            onclick="toggleProjectMenu(event)"
+            data-tip="Project actions" aria-label="Project actions">
+        <svg class="icon" aria-hidden="true"><use href="#i-ellipsis"/></svg>
       </span>
 
     </div>
@@ -77,8 +79,8 @@
     <div class="section"  data-weight="background">
       <h3>
         Background
-        <button onclick="createNew('background')">+</button>
-        <button onclick="createFolder('background')">📁</button>
+        <button type="button" class="icon-btn" onclick="createNew('background')" data-tip="New file" aria-label="New file"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        <button type="button" class="icon-btn" onclick="createFolder('background')" data-tip="New folder" aria-label="New folder"><svg class="icon" aria-hidden="true"><use href="#i-folder-plus"/></svg></button>
       </h3>
       <div id="backgroundList"></div>
     </div>
@@ -86,8 +88,8 @@
     <div class="section" data-weight="writing">
       <h3>
         Writing
-        <button onclick="createNew('writing')">+</button>
-        <button onclick="createFolder('writing')">📁</button>
+        <button type="button" class="icon-btn" onclick="createNew('writing')" data-tip="New file" aria-label="New file"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        <button type="button" class="icon-btn" onclick="createFolder('writing')" data-tip="New folder" aria-label="New folder"><svg class="icon" aria-hidden="true"><use href="#i-folder-plus"/></svg></button>
       </h3>
       <div id="writingList"></div>
     </div>
@@ -99,28 +101,15 @@
 <div class="right">
   <!-- ---------- TITLE INPUT ---------- -->
   <div class="title-row">
-    <!-- Sidebar toggle (panel-left icon: Lucide, ISC license) -->
-    <button type="button"
-            id="sidebarToggle"
-            class="icon-btn ghost-btn"
-            onclick="toggleSidebar()"
-            title="Toggle sidebar (⌘\)"
-            aria-label="Toggle sidebar"
-            aria-pressed="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <rect width="18" height="18" x="3" y="3" rx="2"/>
-        <path d="M9 3v18"/>
-      </svg>
-    </button>
+    <button type="button" id="sidebarToggle" class="icon-btn ghost-btn tip-start" onclick="toggleSidebar()" data-tip="Sidebar (⌘\)" aria-label="Toggle sidebar" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-panel-left"/></svg></button>
     <input id="titleInput" placeholder="Title..." />
   </div>
   <!-- ---------- FORMATTING BAR ---------- -->
   <div class="formatting">
-    <button class="md-tool" onclick="wrapSelection('**')"><b>B</b></button>
-    <button class="md-tool" onclick="wrapSelection('*')"><i>I</i></button>
-    <button class="md-tool" onclick="insertPrefix('## ')">H2</button>
-    <button class="md-tool" onclick="insertPrefix('- ')">•</button>
+    <button type="button" class="icon-btn md-tool" onclick="wrapSelection('**')" data-tip="Bold" aria-label="Bold"><svg class="icon" aria-hidden="true"><use href="#i-bold"/></svg></button>
+    <button type="button" class="icon-btn md-tool" onclick="wrapSelection('*')" data-tip="Italic" aria-label="Italic"><svg class="icon" aria-hidden="true"><use href="#i-italic"/></svg></button>
+    <button type="button" class="icon-btn md-tool" onclick="insertPrefix('## ')" data-tip="Heading" aria-label="Heading"><svg class="icon" aria-hidden="true"><use href="#i-heading-2"/></svg></button>
+    <button type="button" class="icon-btn md-tool" onclick="insertPrefix('- ')" data-tip="Bullet list" aria-label="Bullet list"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg></button>
 
     <select id="fontSelect" onchange="changeEditorFont(this.value)">
       <option value="Georgia">Georgia</option>
@@ -142,37 +131,9 @@
       <option value="18px">18</option>
     </select>
 
-    <!-- Preview toggle (eye icon: Lucide, ISC license) -->
-    <button type="button"
-            id="previewToggle"
-            class="icon-btn"
-            onclick="togglePreview()"
-            title="Preview (⌘E)"
-            aria-label="Preview"
-            aria-pressed="false">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
-    </button>
+    <button type="button" id="previewToggle" class="icon-btn tip-end" onclick="togglePreview()" data-tip="Preview (⌘E)" aria-label="Preview" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg></button>
 
-    <!-- Zen mode toggle (maximize-2 icon: Lucide, ISC license) -->
-    <button type="button"
-            id="zenToggle"
-            class="icon-btn"
-            onclick="toggleZen()"
-            title="Zen mode (⌘⇧F)"
-            aria-label="Zen mode"
-            aria-pressed="false">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M15 3h6v6"/>
-        <path d="M9 21H3v-6"/>
-        <path d="m21 3-7 7"/>
-        <path d="m3 21 7-7"/>
-      </svg>
-    </button>
+    <button type="button" id="zenToggle" class="icon-btn tip-end" onclick="toggleZen()" data-tip="Zen mode (⌘⇧F)" aria-label="Zen mode" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-maximize-2"/></svg></button>
   </div>
 
   <!-- ---------- MAIN EDITOR ---------- -->
@@ -192,14 +153,14 @@
           <option value="">-- Select Model --</option>
         </select>
 
-        <button type="button" onclick="generate()">Generate</button>
-        <button type="button" id="stopGenerateBtn" onclick="stopGeneration()" disabled>⏹ Stop</button>
-        <button type="button" id="undoGenerateBtn" onclick="undoLastGeneration()" disabled>↩ Undo</button>
-        <button type="button" onclick="saveCurrentFile()">Save</button>
-        <button type="button" onclick="clearPrompt()">ClearPrompt</button>
+        <button type="button" class="icon-btn primary-btn tip-up" onclick="generate()" data-tip="Generate (⌘↵)" aria-label="Generate (⌘↵)" id="generateBtn"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg></button>
+        <button type="button" class="icon-btn tip-up" onclick="stopGeneration()" data-tip="Stop (Esc)" aria-label="Stop (Esc)" id="stopGenerateBtn" disabled><svg class="icon" aria-hidden="true"><use href="#i-square"/></svg></button>
+        <button type="button" class="icon-btn tip-up" onclick="undoLastGeneration()" data-tip="Undo last generation" aria-label="Undo last generation" id="undoGenerateBtn" disabled><svg class="icon" aria-hidden="true"><use href="#i-undo-2"/></svg></button>
+        <button type="button" class="icon-btn tip-up" onclick="saveCurrentFile()" data-tip="Save (⌘S)" aria-label="Save (⌘S)"><svg class="icon" aria-hidden="true"><use href="#i-save"/></svg></button>
+        <button type="button" class="icon-btn tip-up tip-end" onclick="clearPrompt()" data-tip="Clear instruction" aria-label="Clear instruction"><svg class="icon" aria-hidden="true"><use href="#i-eraser"/></svg></button>
       </div>
 
-      <div id="loadingIndicator" style="display:none;">⏳ Thinking...</div>
+      <div id="loadingIndicator" style="display:none;"><svg class="icon" aria-hidden="true"><use href="#i-loader-circle"/></svg> Thinking…</div>
     </div>
   </div>
 </div>
@@ -236,21 +197,8 @@
   </div>
 </div>
 
-<!-- Exit button shown only in zen mode (minimize-2 icon: Lucide, ISC license) -->
-<button type="button"
-        id="zenExit"
-        class="icon-btn ghost-btn zen-exit"
-        onclick="setZen(false)"
-        title="Exit zen mode (Esc)"
-        aria-label="Exit zen mode">
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M4 14h6v6"/>
-    <path d="M20 10h-6V4"/>
-    <path d="m14 10 7-7"/>
-    <path d="m3 21 7-7"/>
-  </svg>
-</button>
+<!-- Exit button shown only in zen mode -->
+<button type="button" id="zenExit" class="icon-btn ghost-btn zen-exit tip-end" onclick="setZen(false)" data-tip="Exit zen (Esc)" aria-label="Exit zen mode"><svg class="icon" aria-hidden="true"><use href="#i-minimize-2"/></svg></button>
 
 
 <!-- ===================== SETTINGS MODAL ===================== -->

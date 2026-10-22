@@ -1573,3 +1573,122 @@ body.zen .zen-exit {
   cursor: default;
   filter: none;
 }
+
+
+/* ===================== ICONS & TOOLTIPS ===================== */
+/* Icons come from the Lucide sprite in templates/_icons.html */
+.icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: middle;
+}
+
+.icon-btn {
+  position: relative;
+}
+
+.footer-actions .icon-btn {
+  padding: 6px 9px;
+}
+
+.gear-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.section h3 .icon,
+.dropdown-arrow .icon,
+.folder-arrow .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.dropdown-arrow,
+.folder-arrow,
+.menu-btn {
+  display: inline-flex;
+  align-items: center;
+}
+
+.folder-arrow {
+  color: var(--text-muted);
+}
+
+/* Generate is busy: gentle pulse instead of a text change */
+.is-busy .icon {
+  animation: icon-pulse 1s ease-in-out infinite;
+}
+
+#loadingIndicator {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+#loadingIndicator .icon {
+  animation: icon-spin 0.9s linear infinite;
+}
+
+@keyframes icon-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes icon-pulse {
+  50% { opacity: 0.4; }
+}
+
+/* Instant tooltips from data-tip (native title tooltips wait about a second) */
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background-color: #1f2328;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease 0.15s;
+}
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  opacity: 1;
+}
+
+.tip-up[data-tip]::after {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.tip-end[data-tip]::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.tip-start[data-tip]::after {
+  left: 0;
+  transform: none;
+}
+
+/* Dim disabled icon buttons clearly */
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
