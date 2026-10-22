@@ -9,6 +9,56 @@ fork.
 
 ---
 
+## 2026-10-22: Top bar with logo, version, light/dark switch, and settings
+
+**Commit:** `af6c552`. **Files:** `app/app.py`, `app/templates/index.html`,
+`app/static/script.js`, `app/static/style.css`, and
+`app/templates/_icons.html` (Lucide `sun` and `moon`).
+
+- **Why:** the "Your Writing Helper" heading took space at the top of the
+  sidebar and added nothing once the app is open. App-level controls (settings,
+  light/dark) had no natural home.
+- **How:**
+  - **The bar:** a 40 px `<header class="top-bar">` sits above the main layout.
+    The layout height became `100vh − --topbar-h − --statusbar-h`.
+    - **Left:** the app icon (`apple-touch-icon.png` at 22 px, with rounded
+      corners) and the version, in the muted text color.
+    - **Right:** a light/dark switch and the settings gear, which moved here
+      from the sidebar.
+  - **Light/dark switch:**
+    - It shows the mode a click switches to: a moon in light mode, a sun in
+      dark mode.
+    - It keeps the current accent, saves `themeMode` and `accent` to
+      `app_state.json`, and updates its icon and tooltip in `applyAppearance()`.
+    - "Match system" stays a choice in Settings → Visual Layout.
+  - **The old header:** the `.header-row` markup and its CSS rule are removed.
+  - **Version:** the new `APP_VERSION = "0.9.0"` constant in `app.py` is passed
+    to the template. Both the top bar and the About view read it, so the
+    version lives in one place.
+  - **Zen mode** hides the bar.
+  - The bar sits above the panes (`z-index: 20`), so tooltips that drop below
+    it are not hidden.
+
+## 2026-10-22: Personal prompts and system rules stay out of Git
+
+**Commit:** `5fe1914`. **File:** `.gitignore`.
+
+- **Why:** new prompts or system rules made in the app are saved in
+  `Global/prompts/` and `Global/system/`. Those folders were tracked, so
+  personal files showed up as untracked and could be committed by accident.
+- **How:**
+  - `Global/prompts/*` and `Global/system/*` are ignored, with exceptions for
+    the shipped starters: `epbm-*.json`, `plan.json`,
+    `always-on-instructions-from-cv-to-be-edited.json`, and `em-dashes.json`.
+    This is the same pattern as `Projects/*` with its sample-project exception.
+  - Starter files that are already tracked stay tracked. New starters must
+    match the exceptions to be added.
+  - **Local-only note:** in this fork's own copy, `Global/modelList.json` also
+    has `git update-index --skip-worktree` set, because it records the user's
+    own model choices. This is not part of the repository.
+
+---
+
 ## 2026-10-22: AI setup panel on the right, with a summary chip
 
 **Commit:** `9a73855`. **Files:** `app/templates/index.html`,
