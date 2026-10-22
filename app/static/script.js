@@ -1189,16 +1189,14 @@ async function moveModelToPosition(
 
 
 function openVisualPanel() {
-  document.getElementById("settingsMainLayout").classList.add("hidden");
-  document.getElementById("settingsVisualView").classList.remove("hidden");
   loadVisualSettingsIntoUI();
+  document.getElementById("visualModal").classList.remove("hidden");
 }
 
 function closeVisualPanel() {
   const { mode, accent } = savedAppearance();
   applyAppearance(mode, accent);
-  document.getElementById("settingsVisualView").classList.add("hidden");
-  document.getElementById("settingsMainLayout").classList.remove("hidden");
+  document.getElementById("visualModal").classList.add("hidden");
 }
 
 async function openModelsPanel() {
@@ -4832,15 +4830,37 @@ function closeHistory() {
 
 
 // =====================
+// MODALS: × button, Esc, or a click on the backdrop closes them
+// =====================
+
+const MODAL_CLOSERS = {
+  settingsModal: () => closeSettings(true),
+  historyModal: () => closeHistory(),
+  visualModal: () => closeVisualPanel()
+};
+
+function closeModal(modal) {
+  MODAL_CLOSERS[modal.id]?.();
+}
+
+document.querySelectorAll(".modal").forEach(modal => {
+  modal.addEventListener("mousedown", (e) => {
+    if (e.target === modal) closeModal(modal);
+  });
+});
+
+
+// =====================
 // KEYBOARD SHORTCUTS (⌘ on Mac, Ctrl elsewhere)
 // =====================
 // ⌘E preview (same key as Obsidian) · ⌘S save · ⌘Enter generate
 // ⌘\ sidebar · ⌘⌥\ AI setup · ⌘⇧F zen · Esc stops generation, then leaves zen
 
 document.addEventListener("keydown", (e) => {
-  if (!document.getElementById("settingsModal").classList.contains("hidden")) return;
-  if (!document.getElementById("historyModal").classList.contains("hidden")) {
-    if (e.key === "Escape") closeHistory();
+  // While a window is open, only Esc (close it) applies
+  const openModal = [...document.querySelectorAll(".modal")].find(m => !m.classList.contains("hidden"));
+  if (openModal) {
+    if (e.key === "Escape") closeModal(openModal);
     return;
   }
 
