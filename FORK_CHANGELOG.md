@@ -9,6 +9,97 @@ fork.
 
 ---
 
+## 2026-10-22: Sidebar toggle, zen mode, status bar, shortcuts, file reveal
+
+**Commit:** `99ed60b`. **Files:** `app/templates/index.html`,
+`app/static/script.js`, `app/static/style.css`. The icons are inline SVGs from
+Lucide (ISC license).
+
+### 1. Collapsible sidebar
+
+- **Why:** the sidebar always took 30% of the window, even while you write.
+- **How:**
+  - A panel icon sits to the left of the title. A new `.title-row` wraps the
+    toggle and the title input. **⌘\\** (Ctrl+\\) also toggles the sidebar.
+  - A `sidebar-collapsed` class on `body` sets the sidebar's width and side
+    padding to 0, with a short width transition.
+  - The writing area changed from `width: 70%` to `flex: 1`, so it fills the
+    freed space.
+  - The state is saved in `localStorage` (`sjb_sidebar_collapsed`) and restored
+    on load.
+
+### 2. Zen mode
+
+- **Why:** a distraction-free space to write or read.
+- **How:**
+  - A toolbar button (next to the preview eye), or **⌘⇧F**, adds a `zen` class
+    to `body`.
+  - That class hides the sidebar, formatting bar, AI dock, status bar, and
+    sidebar toggle. It centers the title and lets the writing area take the
+    full window height.
+  - **Esc** exits. So does a faint button in the top-right corner, which
+    appears only in zen and brightens on hover.
+  - Zen combines with preview (⌘E) for a clean reading view.
+  - Zen is not remembered: every session starts in normal view.
+
+### 3. Status bar
+
+- **Why:** the document stats shared a row with the AI buttons, and nothing
+  showed whether the file was saved.
+- **How:**
+  - A 26 px bar spans the bottom of the window. The main layout height
+    became `100vh − --statusbar-h`.
+  - **Left side:** "Project › File title", then the save state:
+    - "Unsaved" (accent color) while there are unsaved changes.
+    - "Saved · just now / 45s ago / 3 min ago / 2:14 PM" after a save from
+      this session.
+    - "Saved" right after opening a file.
+  - **Right side:** words, reading time (words ÷ 230, rounded, at least
+    1 min), and the context meter.
+  - **Context meter:** it now reads "1,473 / 128,000 tokens", with a small
+    CSS dot instead of the 🟢🟡🔴 emoji. The dot is green, amber above 70%,
+    and red above 90%, set through a `data-level` attribute.
+  - **Updates:** the bar updates on every word-count update and every 2
+    seconds. The timer keeps "x min ago" current and also catches title edits.
+  - **Kept IDs:** the old `.footer-status` wrapper was removed, but the
+    `#wordCount` and `#tokenMeter` elements kept their IDs, so existing code
+    still finds them.
+
+### 4. Keyboard shortcuts
+
+These use ⌘ on Mac and Ctrl elsewhere, through one shared `keydown` listener:
+
+- **⌘S** saves the current file and blocks the browser's "Save page" dialog.
+- **⌘Enter** generates, unless a generation is already running.
+- **Esc** stops a running generation. If nothing is running, it leaves zen.
+- **⌘E** (preview), **⌘\\** (sidebar), and **⌘⇧F** (zen) are as above.
+- Shortcuts are ignored while the Settings window is open.
+- The tooltips on the new buttons show their shortcuts.
+
+### 5. The open file is always visible in the sidebar
+
+- **Why:** when the app reopened the last file at startup, the file's folder
+  could be collapsed. Nothing in the sidebar then showed which file was open.
+- **How:**
+  - After a file opens, a new `revealActiveFile()` walks that section's
+    folder tree.
+  - It expands every collapsed folder that contains the file, and saves that
+    through the existing `/update_folder_state` route, the same as a manual
+    click.
+  - It then re-renders and scrolls the highlighted row into view.
+  - Startup restore goes through the same `openFile()` path, so both cases
+    are covered.
+
+**Check:**
+
+1. Reload the app. The open file's folder should be expanded and the file
+   highlighted.
+2. Type something. The status bar should show "Unsaved". Press ⌘S, and it
+   should change to "Saved · just now".
+3. Press ⌘\\ twice, then ⌘⇧F, then Esc.
+
+---
+
 ## 2026-10-22: Markdown preview toggle
 
 **Commit:** `09c7f9e`. **Files:** `app/templates/index.html`,
