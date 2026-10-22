@@ -1423,10 +1423,22 @@ body.zen .zen-exit {
 /* Context meter dot: green, amber above 70%, red above 90% */
 #tokenMeter {
   position: relative;   /* anchors the breakdown tooltip */
-  cursor: default;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+#tokenMeter:hover {
+  background: none;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 #tokenMeter::before {
@@ -1505,6 +1517,54 @@ body.zen .zen-exit {
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: break-word;
+}
+
+/* ===================== AI REQUEST PREVIEW ===================== */
+.request-content {
+  width: min(860px, 94vw);
+}
+
+.request-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.request-label {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.request-label span {
+  margin-left: 6px;
+  font-weight: normal;
+  color: var(--text-muted);
+}
+
+.request-text {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--surface);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.request-text.is-empty {
+  font-family: inherit;
+  color: var(--text-muted);
+}
+
+.request-copy {
+  margin-right: auto;
 }
 
 /* ===================== TRASH ===================== */

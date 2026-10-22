@@ -1312,26 +1312,39 @@ function updateActiveModelDisplay() {
 }
 
 
+function isOpenFile(section, filename) {
+  return currentFile.section === section && currentFile.filename === filename;
+}
+
 async function updateTokenMeter() {
-  // Same parts, in the same order, as the request generate() sends
-  const pick = (tree, set) =>
-    collectFilenames(tree || []).filter(f => set.has(f));
-  const read = (section, files) =>
-    Promise.all(files.map(f => ensureFileCached(section, f)));
+  // Built the same way as the server's build_ai_request, so this count
+  // matches the "What the AI will see" preview
+  const read = (section, tree, set) => Promise.all(
+    collectFilenames(tree || [])
+      .filter(f => set.has(f) && (section === "system" || !isOpenFile(section, f)))
+      .map(async f => ({
+        title: findFileItemInTree(tree || [], f)?.title || f.replace(/\.json$/, ""),
+        content: ((await ensureFileCached(section, f)) || "").trim()
+      }))
+  );
+  const group = (tag, docs) => {
+    const body = docs.filter(d => d.content)
+      .map(d => `<document title="${d.title}">\n${d.content}\n</document>`)
+      .join("\n\n");
+    return body ? `<${tag}>\n${body}\n</${tag}>` : "";
+  };
+  const wrap = (open, close, text) => text.trim() ? `<${open}>\n${text.trim()}\n</${close}>` : "";
 
   const parts = {
-    Rules: await read("system", pick(state.global?.system, selected.system)),
-    Notes: await read("background", pick(state.project?.background, selected.background)),
-    Chapters: await read(
-      "writing",
-      pick(state.project?.writing, selected.writing).filter(f => f !== currentFile.filename)
-    ),
-    "This document": [editor.value],
-    Instruction: [promptBox.value]
+    Rules: (await read("system", state.global?.system, selected.system))
+      .map(d => d.content).filter(Boolean).join("\n\n"),
+    Notes: group("background", await read("background", state.project?.background, selected.background)),
+    Chapters: group("writing", await read("writing", state.project?.writing, selected.writing)),
+    "This document": wrap(`current_document title="${titleInput.value}"`, "current_document", editor.value),
+    Instruction: wrap("instruction", "instruction", promptBox.value)
   };
 
-  const join = list => list.join("\n\n---\n\n");
-  const tokens = estimateTokens(join(Object.values(parts).flat()));
+  const tokens = estimateTokens(Object.values(parts).filter(Boolean).join("\n\n"));
   const selectedModel = getModelById(settings.modelName);
   // Context sizes typed into Manage Models are stored as text
   const max = Number(selectedModel?.context) || 128000;
@@ -1350,12 +1363,12 @@ async function updateTokenMeter() {
 
   // Hover: where the tokens come from, and how much of the model's limit they use
   const breakdown = Object.entries(parts)
-    .filter(([, list]) => list.some(text => text))
-    .map(([name, list]) => `${name} ${estimateTokens(join(list)).toLocaleString()}`)
+    .filter(([, text]) => text)
+    .map(([name, text]) => `${name} ${estimateTokens(text).toLocaleString()}`)
     .join(" · ") || "Nothing to send yet";
   const used = (tokens / max) * 100;
   meter.dataset.tip =
-    `${breakdown} — ${used < 0.1 ? "<0.1" : used.toFixed(used < 10 ? 1 : 0)}% of this model's ${short(max)} limit`;
+    `${breakdown} — ${used < 0.1 ? "<0.1" : used.toFixed(used < 10 ? 1 : 0)}% of this model's ${short(max)} limit. Click to see the exact text.`;
 }
 
 function toggleProjectMenu(e) {
@@ -1800,6 +1813,23 @@ function clearPrompt() {
 // GENERATE WITH SELECTIONS
 // =====================
 
+// What goes to the AI, in sidebar order. The open document is sent from the
+// editor (unsaved text included), so it is left out of its own section's list.
+function aiRequestParts() {
+  const picked = (tree, set, section) => collectFilenames(tree || [])
+    .filter(f => set.has(f))
+    .filter(f => !(currentFile.section === section && currentFile.filename === f));
+
+  return {
+    // Rules stay rules, even while one is open in the editor
+    system: collectFilenames(state.global.system || []).filter(f => selected.system.has(f)),
+    background: picked(state.project.background, selected.background, "background"),
+    writing: picked(state.project.writing, selected.writing, "writing"),
+    current: { title: currentFile.filename ? titleInput.value : "", content: editor.value },
+    prompt: promptBox.value
+  };
+}
+
 async function generate() {
   if (!settings.modelName) {
     showToast("Please select a model in Settings.", "info");
@@ -1829,20 +1859,8 @@ if (generationUndoStack.length > MAX_UNDO) {
 updateUndoButton();
 
   try {
-    // Preserve order from state
-    const systemFiles = collectFilenames(state.global.system || [])
-      .filter(f => selected.system.has(f));
-    const backgroundFiles = collectFilenames(state.project.background || [])
-      .filter(f => selected.background.has(f));
-    const writingFiles = collectFilenames(state.project.writing || [])
-      .filter(f => selected.writing.has(f) && f !== currentFile.filename);
-
-    // Final ordered payload
     const payload = {
-      system: systemFiles,
-      background: backgroundFiles,
-      writing: [...writingFiles, editor.value],
-      prompt: promptBox.value,
+      ...aiRequestParts(),
       settings: { ...settings, ...generationSettings() }
     };
 
@@ -4339,7 +4357,7 @@ const OVERFLOW_GROUPS = {
   },
   actions: {
     bar: ".controls",
-    hideOrder: ['[aria-label="Clear instruction"]', '[aria-label="Save (⌘S)"]', "#undoGenerateBtn", "#stopGenerateBtn"]
+    hideOrder: ['[aria-label="Clear instruction"]', '[aria-label="Save (⌘S)"]', "#previewRequestBtn", "#undoGenerateBtn", "#stopGenerateBtn"]
   }
 };
 
@@ -4925,6 +4943,54 @@ function closeHistory() {
 
 
 // =====================
+// AI REQUEST PREVIEW: the exact text Generate sends
+// =====================
+
+let requestPreviewText = "";
+
+async function openRequestPreview() {
+  const { data } = await postJSON('/preview_request', aiRequestParts());
+  const system = data.system || "";
+  const user = data.user || "";
+
+  const systemBox = document.getElementById("requestSystem");
+  systemBox.textContent = system || "No System files are ticked, so no rules message is sent.";
+  systemBox.classList.toggle("is-empty", !system);
+
+  const userBox = document.getElementById("requestUser");
+  userBox.textContent = user || "Nothing to send yet. Tick some files or type an instruction.";
+  userBox.classList.toggle("is-empty", !user);
+
+  const extras = generationSettings();
+  // Counted like the status bar, so both show the same number
+  const tokens = estimateTokens([system, user].filter(Boolean).join("\n\n"));
+  document.getElementById("requestSummary").textContent = [
+    settings.modelName ? `Model: ${settings.modelName}` : "No model chosen",
+    `about ${tokens.toLocaleString()} tokens`,
+    extras.webSearch && settings.modelSource !== "ollama"
+      ? `web search adds up to ${extras.webMaxResults} results`
+      : ""
+  ].filter(Boolean).join(" · ");
+
+  requestPreviewText = (system ? `[System]\n${system}\n\n[User]\n` : "") + user;
+  document.getElementById("requestModal").classList.remove("hidden");
+}
+
+async function copyRequestPreview(button) {
+  try {
+    await navigator.clipboard.writeText(requestPreviewText);
+    showToast("Copied the AI request.", "info");
+  } catch {
+    showToast("Could not copy. Select the text and copy it by hand.");
+  }
+}
+
+function closeRequestPreview() {
+  document.getElementById("requestModal").classList.add("hidden");
+}
+
+
+// =====================
 // TRASH: deleted documents and projects, with Restore
 // =====================
 
@@ -5059,7 +5125,8 @@ const MODAL_CLOSERS = {
   settingsModal: () => closeSettings(true),
   historyModal: () => closeHistory(),
   visualModal: () => closeVisualPanel(),
-  trashModal: () => closeTrash()
+  trashModal: () => closeTrash(),
+  requestModal: () => closeRequestPreview()
 };
 
 function closeModal(modal) {

@@ -548,7 +548,65 @@ def web_search_plugin(settings):
         max_results = 5
     return {"id": "web", "max_results": min(10, max(1, max_results))}
 
-def call_openrouter(prompt, settings):
+def load_document(section, filename):
+    """(title, content) of a stored document, or None."""
+    if section not in SECTIONS or not is_safe_name(filename):
+        return None
+    path = os.path.join(get_base_path(section), filename)
+    if not os.path.exists(path):
+        return None
+    data = load_json(path) or {}
+    return data.get("title") or filename[:-5], data.get("content", "")
+
+
+def title_attr(text):
+    return str(text or "").replace('"', "'").replace("\n", " ").strip()
+
+
+def build_ai_request(data):
+    """System files become the system message. Everything else goes in the user
+    message, each part wrapped in a labelled tag so the model can tell notes,
+    manuscript, the open document, and the instruction apart."""
+    rules = []
+    for filename in data.get("system", []):
+        doc = load_document("system", filename)
+        if doc and doc[1].strip():
+            rules.append(doc[1].strip())
+
+    blocks = []
+
+    def add_group(tag, section):
+        docs = []
+        for filename in data.get(section, []):
+            if not (isinstance(filename, str) and filename.endswith(".json")):
+                continue
+            doc = load_document(section, filename)
+            if doc and doc[1].strip():
+                docs.append(f'<document title="{title_attr(doc[0])}">\n{doc[1].strip()}\n</document>')
+        if docs:
+            blocks.append(f"<{tag}>\n" + "\n\n".join(docs) + f"\n</{tag}>")
+
+    add_group("background", "background")
+    add_group("writing", "writing")
+
+    current = data.get("current")
+    if not isinstance(current, dict):
+        # Older pages send the editor text as the last writing item
+        raw = [i for i in data.get("writing", []) if isinstance(i, str) and not i.endswith(".json")]
+        current = {"title": "", "content": raw[-1] if raw else ""}
+    if str(current.get("content") or "").strip():
+        title = title_attr(current.get("title"))
+        open_tag = f'<current_document title="{title}">' if title else "<current_document>"
+        blocks.append(f"{open_tag}\n{current['content'].strip()}\n</current_document>")
+
+    instruction = str(data.get("prompt") or "").strip()
+    if instruction:
+        blocks.append(f"<instruction>\n{instruction}\n</instruction>")
+
+    return {"system": "\n\n".join(rules), "user": "\n\n".join(blocks)}
+
+
+def call_openrouter(request_parts, settings):
     def get_api_key():
         config_path = os.path.join(GLOBAL_DIR, "config.json")
 
@@ -582,9 +640,9 @@ def call_openrouter(prompt, settings):
 
     data = {
         "model": model,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
+        "messages": (
+            [{"role": "system", "content": request_parts["system"]}] if request_parts["system"] else []
+        ) + [{"role": "user", "content": request_parts["user"]}],
         "stream": True
     }
 
@@ -663,7 +721,7 @@ def call_openrouter(prompt, settings):
     except Exception as e:
         return {"error": str(e)}
 
-def call_ollama(prompt, settings):
+def call_ollama(request_parts, settings):
 
     model = settings.get("modelName")
 
@@ -674,9 +732,11 @@ def call_ollama(prompt, settings):
 
     data = {
         "model": model,
-        "prompt": prompt,
+        "prompt": request_parts["user"],
         "stream": True
     }
+    if request_parts["system"]:
+        data["system"] = request_parts["system"]
 
     # Ollama: temperature goes in options; "think" turns reasoning on or off
     temperature, effort = generation_options(settings)
@@ -791,30 +851,7 @@ def api_load_all():
 @app.route('/generate', methods=['POST'])
 def api_generate():
     data = request.json
-
-    prompt_parts = []
-
-    prompt_parts = []
-
-    for section in ["system", "background", "writing"]:
-        for item in data.get(section, []):
-
-            # writing section may contain raw editor content
-            if section == "writing":
-                if isinstance(item, str) and item.endswith(".json"):
-                    content = load_file_content(section, item)
-                    prompt_parts.append(content)
-                else:
-                    prompt_parts.append(item)
-
-            # all other sections are stored files
-            else:
-                prompt_parts.append(load_file_content(section, item))
-
-
-    prompt_parts.append(data.get("prompt", ""))
-
-    prompt = "\n\n---\n\n".join(prompt_parts)
+    request_parts = build_ai_request(data)
 
     client_settings = data.get("settings", {})
 
@@ -831,11 +868,11 @@ def api_generate():
 
     if model_source == "openrouter":
 
-        result = call_openrouter(prompt, model_settings)
+        result = call_openrouter(request_parts, model_settings)
 
     elif model_source == "ollama":
 
-        result = call_ollama(prompt, model_settings)
+        result = call_ollama(request_parts, model_settings)
 
     else:
 
@@ -852,6 +889,12 @@ def api_generate():
     )
 
 
+
+
+@app.route('/preview_request', methods=['POST'])
+def api_preview_request():
+    """The exact system and user messages Generate would send."""
+    return jsonify(build_ai_request(request.json or {}))
 
 
 @app.route('/models', methods=['GET'])
