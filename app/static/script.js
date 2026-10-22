@@ -1330,7 +1330,10 @@ async function updateTokenMeter() {
   if (tokens / max > 0.9) level = "high";
   else if (tokens / max > 0.7) level = "warn";
 
-  const short = n => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
+  const short = n =>
+    n >= 1000000 ? `${Math.round(n / 100000) / 10}M`
+    : n >= 1000 ? `${Math.round(n / 1000)}k`
+    : String(n);
   const meter = document.getElementById("tokenMeter");
   meter.dataset.level = level;
   meter.innerText = `AI request ≈ ${tokens.toLocaleString()} / ${short(max)} tokens`;

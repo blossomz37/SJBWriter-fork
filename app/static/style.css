@@ -14,6 +14,11 @@
 
   /* One step of nesting in the sidebar tree */
   --tree-indent: 18px;
+
+  /* Space between the window edge (or a pane edge) and its content */
+  --gutter: 16px;
+  /* Borderless icon buttons: 6px padding + 1px border before the icon */
+  --ghost-inset: 7px;
 }
 
 /* Light mode (default) */
@@ -199,7 +204,7 @@ button:hover {
   background-color: var(--panel);
   display: flex;
   flex-direction: column;
-  padding: 10px 8px;
+  padding: 12px var(--gutter);
   box-sizing: border-box;
   min-height: 0;
   overflow: hidden;
@@ -952,7 +957,7 @@ input[type="radio"] {
   z-index: 5;
   background-color: var(--panel);
   margin: 0;
-  padding: 8px 6px 4px;
+  padding: 8px 0 4px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -1031,7 +1036,7 @@ input[type="radio"] {
 .formatting {
   display: flex;
   gap: 4px;
-  padding: 4px 6px;
+  padding: 4px var(--gutter);
   border-bottom: 1px solid var(--border);
   background-color: var(--panel);
   position: sticky;
@@ -1091,7 +1096,7 @@ input[type="radio"] {
 
 /* AI dock zone */
 .bottom {
-  padding: 10px 12px;
+  padding: 12px var(--gutter);
   border-top: 1px solid var(--border);
   background-color: var(--panel);
 }
@@ -1320,7 +1325,7 @@ input[type="radio"] {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding-left: 8px;
+  padding-left: calc(var(--gutter) - 8px);   /* the title input adds 8px */
   border-bottom: 1px solid var(--border);
 }
 
@@ -1384,7 +1389,7 @@ body.zen .zen-exit {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 12px;
+  padding: 0 var(--gutter);
   font-size: 12px;
   color: var(--text-muted);
   background-color: var(--panel);
@@ -1819,7 +1824,7 @@ body.zen .zen-exit {
   width: 320px;
   flex-shrink: 0;
   min-height: 0;
-  padding: 10px 8px;
+  padding: 12px var(--gutter);
   box-sizing: border-box;
   background-color: var(--panel);
   border-left: 1px solid var(--border);
@@ -1838,7 +1843,7 @@ body.zen .ai-panel {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0 6px 4px;
+  padding: 0 0 6px;
 }
 
 .ai-panel-header h2 {
@@ -1908,7 +1913,7 @@ body.ai-panel-open .toast-stack {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 10px 0 12px;
+  padding: 0 calc(var(--gutter) - var(--ghost-inset));
   background-color: var(--panel);
   border-bottom: 1px solid var(--border);
   box-sizing: border-box;
@@ -2026,7 +2031,7 @@ body.no-document #readingTime {
 
 /* ===================== CLOSE DOCUMENT / HOME ===================== */
 .title-row {
-  padding-right: 8px;
+  padding-right: calc(var(--gutter) - var(--ghost-inset));
 }
 
 /* Logo + version act as one plain "home" button */
@@ -2138,4 +2143,10 @@ body.zen #closeDocBtn {
 
 .file-menu .project-menu-item {
   padding: 5px 10px;
+}
+
+/* Borderless buttons at a pane's right edge: icon on the gutter line */
+.ai-panel-header .ghost-btn,
+.section h3 .sort-btn {
+  margin-right: calc(-1 * var(--ghost-inset));
 }
