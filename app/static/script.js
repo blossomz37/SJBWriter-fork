@@ -3751,10 +3751,38 @@ function toggleMenu(row, section, filename) {
   }, 0);
 }
 
+// Words inside quotation marks ("…" or “…”). A quote still open at the end of a
+// paragraph counts to that paragraph's end: the usual way speech runs on.
+function countDialogueWords(text) {
+  let words = 0;
+  for (const paragraph of text.split("\n")) {
+    let inQuote = false;
+    let spoken = "";
+    for (const ch of paragraph) {
+      if (!inQuote && (ch === "\u201C" || ch === '"')) {
+        inQuote = true;
+      } else if (inQuote && (ch === "\u201D" || ch === '"')) {
+        inQuote = false;
+        spoken += " ";
+      } else if (inQuote) {
+        spoken += ch;
+      }
+    }
+    const said = spoken.trim();
+    if (said) words += said.split(/\s+/).length;
+  }
+  return words;
+}
+
 function updateWordCount() {
   const text = editor.value.trim();
   const count = text === "" ? 0 : text.split(/\s+/).length;
   document.getElementById("wordCount").textContent = `${count.toLocaleString()} words`;
+
+  const dialogue = count === 0 ? 0 : countDialogueWords(text);
+  const dialogueEl = document.getElementById("dialoguePercent");
+  dialogueEl.textContent = count === 0 ? "" : `${Math.round((dialogue / count) * 100)}% dialogue`;
+  dialogueEl.dataset.tip = `${dialogue.toLocaleString()} of ${count.toLocaleString()} words are in quotes`;
   document.getElementById("readingTime").textContent =
     count === 0 ? "" : `${Math.max(1, Math.round(count / 230))} min read`;
   schedulePreviewRender();
