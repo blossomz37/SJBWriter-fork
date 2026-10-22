@@ -2480,3 +2480,21 @@ body.mode-dark .model-flag-leaving {
   width: min(560px, 92vw);
   height: auto;
 }
+
+
+/* ===================== AI OFF: plain document editor ===================== */
+body.ai-off .bottom,
+body.ai-off .ai-panel,
+body.ai-off #aiPanelToggle,
+body.ai-off #tokenMeter {
+  display: none !important;
+}
+
+.settings-section .settings-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 14px;
+  opacity: 1;
+}

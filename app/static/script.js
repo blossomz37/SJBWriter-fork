@@ -4622,6 +4622,20 @@ function initMarkersPanel() {
 
 
 // =====================
+// AI ON/OFF (Settings → AI features): off = a plain document editor
+// =====================
+
+function aiEnabled() {
+  return state.app_state?.aiEnabled !== false;
+}
+
+function applyAiEnabled() {
+  document.body.classList.toggle("ai-off", !aiEnabled());
+  fitToolbars();
+}
+
+
+// =====================
 // AI SETUP PANEL (System + Prompts, on the right)
 // =====================
 
@@ -4641,6 +4655,7 @@ function editorWidth() {
 }
 
 function toggleAiPanel() {
+  if (!aiEnabled()) return;
   const opening = !document.body.classList.contains("ai-panel-open");
   if (!opening) {
     setAiPanelOpen(false);
@@ -4881,7 +4896,7 @@ document.addEventListener("keydown", (e) => {
     saveCurrentFile();
   } else if (mod && !e.shiftKey && e.key === "Enter") {
     e.preventDefault();
-    if (!isGenerating) generate();
+    if (!isGenerating && aiEnabled()) generate();
   } else if (mod && !e.shiftKey && e.key === "\\") {
     e.preventDefault();
     toggleSidebar();
@@ -4967,6 +4982,14 @@ async function saveSettings() {
   }
 
 
+  state.app_state.aiEnabled = document.getElementById("aiEnabledToggle").checked;
+  applyAiEnabled();
+  await fetch('/save_app_state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ aiEnabled: state.app_state.aiEnabled })
+  });
+
   updateActiveModelDisplay();
   await updateTokenMeter();
   closeSettings();
@@ -5033,6 +5056,7 @@ function loadSettings() {
 
 function loadSettingsIntoUI() {
   document.getElementById("modelName").value = settings.modelName;
+  document.getElementById("aiEnabledToggle").checked = aiEnabled();
   document.getElementById("showWritingCounts").checked =
     state.app_state.showWritingCounts;
   document.getElementById("showBackgroundCounts").checked =
@@ -5231,6 +5255,7 @@ window.onload = async () => {
 
   setAiPanelOpen(readPref("sjb_ai_panel_open", false));
   initPanelResize();
+  applyAiEnabled();
   initGenerationPanel();
   initMarkersPanel();
   loadOpenRouterCatalog().then(() => {
