@@ -9,6 +9,77 @@ fork.
 
 ---
 
+## 2026-10-22: Export to Markdown and Word
+
+One commit (`1179568`). **Files:** `app/app.py`, `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`.
+
+**Why:** Authors need to get their words out of the app: one chapter to
+send to a reader, or the whole manuscript for an editor, a beta reader, or
+a formatting tool. Word (.docx) is what most of those people expect.
+
+**What the author sees:**
+
+- **Document ⋯ menu:** **Export as Markdown** and **Export as Word**. The
+  export has the document's title as a heading, then its text. The
+  Markdown export has no file header.
+- **Project ⋯ menu:** **Export manuscript…** opens a small window with four
+  choices:
+  - **Format:** Word or Markdown.
+  - **Documents:** all of Writing, or only the ticked documents.
+  - **Headings:** folder and document titles as headings.
+  - **New pages:** each document starts on a new page (Word only).
+  The window remembers the last choices.
+- **The manuscript itself:**
+  - It follows the sidebar order.
+  - A folder becomes a heading one level above what it holds, so
+    Part → Chapter works.
+  - A folder's heading starts the new page, and its first chapter joins it
+    on that page.
+  - If a document already starts with its own title as a heading, the app
+    does not add a second one. It sets that heading to the right level.
+- The download is named after the document or the project (for example,
+  `my-book-manuscript.docx`).
+
+**How the Word file is made:**
+
+- **Built in, with no library or Pandoc.** The app writes the .docx parts
+  itself (`markdown_to_docx`): content types, relationships, styles, the
+  document, and core properties (the title).
+- **What it understands:**
+  - Each non-empty line is a paragraph, as in the editor.
+  - `#`–`######` become Heading 1–3.
+  - `**bold**`, `*italic*`, `***both***`, `__bold__`, and `_italic_`, where
+    underscores only count at word edges, so `snake_case` stays as it is.
+  - `-` / `*` / `+` bullets and `1.` numbers.
+  - `>` quotes.
+  - `* * *`, `***`, `---`, `___`, or a lone `#` become a centered "* * *"
+    scene break.
+- **The layout:** a standard manuscript format: Times New Roman 12, double
+  spaced, first lines indented half an inch, no space between paragraphs,
+  1-inch margins on US Letter, and centered bold headings.
+- **New pages:** a new page is the paragraph property `pageBreakBefore`.
+- **Routes:** `POST /export_document {section, filename, format}` and
+  `POST /export_manuscript {format, only, headings, pageBreaks}`. Both
+  return the file as a download.
+
+**Checked with:**
+- Every XML part parses.
+- macOS `textutil` reads the text.
+- Pandoc reads the bold, italic, headings, lists, quote, and scene break
+  back.
+- LibreOffice renders double spacing, the indents, and new pages
+  correctly, and keeps curly quotes and em dashes.
+- macOS Quick Look previews ignore the spacing and page breaks; that is a
+  limit of the preview, not of the file.
+
+**How to check:**
+
+1. Project ⋯ → **Export manuscript…** → Word → **Export**.
+2. Open the file in Word, Pages, or LibreOffice.
+
+---
+
 ## 2026-10-22: Books folder: keep your books anywhere
 
 One commit (`2915ca0`). **Files:** `app/app.py`, `app/static/script.js`,
