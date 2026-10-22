@@ -145,18 +145,92 @@ def docx_to_markdown(data):
     return title or None, "\n\n".join(blocks)
 
 
+# ----- PARAGRAPH SPACING -----
+# Many programs write one paragraph per line with no empty line between.
+# Markdown needs the empty line, or it joins the lines into one paragraph.
+
+def line_kind(line):
+    if re.match(r"^\s*([-*+]|\d+[.)])\s", line):
+        return "list"
+    if re.match(r"^\s*>", line):
+        return "quote"
+    if re.match(r"^\s*\|", line):
+        return "table"
+    if re.match(r"^\s*#{1,6}\s", line):
+        return "heading"
+    return "text"
+
+
+def is_fence(line):
+    return bool(re.match(r"^\s*(```|~~~)", line))
+
+
+def add_paragraph_breaks(text):
+    """Put an empty line between lines that are separate paragraphs (same rule as the preview)."""
+    lines = text.split("\n")
+    out, in_code = [], False
+    for i, line in enumerate(lines):
+        out.append(line)
+        if is_fence(line):
+            in_code = not in_code
+        nxt = lines[i + 1] if i + 1 < len(lines) else None
+        if in_code or nxt is None or not line.strip() or not nxt.strip():
+            continue
+        a, b = line_kind(line), line_kind(nxt)
+        if a == b and a in ("list", "quote", "table"):
+            continue
+        if a == "list" and re.match(r"^\s+\S", nxt):
+            continue
+        out.append("")
+    return "\n".join(out)
+
+
+def one_paragraph_per_line(text):
+    """True when the text uses one line per paragraph: lines of prose follow each other
+    directly, few empty lines separate them, and most lines end a sentence (text wrapped
+    at a fixed width, like an email, breaks lines mid-sentence and is left alone)."""
+    lines = text.split("\n")
+    direct = gapped = ends = prose = 0
+    in_code = False
+    for i, line in enumerate(lines):
+        if is_fence(line):
+            in_code = not in_code
+            continue
+        if in_code or not line.strip() or line_kind(line) != "text":
+            continue
+        prose += 1
+        if re.search(r"[.!?…:\"”’'*)\]]\s*$", line):
+            ends += 1
+        nxt = lines[i + 1] if i + 1 < len(lines) else ""
+        if nxt.strip():
+            direct += line_kind(nxt) == "text"
+        else:
+            later = next((l for l in lines[i + 1:] if l.strip()), None)
+            gapped += later is not None and line_kind(later) == "text"
+    return direct >= 2 and gapped <= direct * 0.5 and ends >= prose * 0.6
+
+
+def spaced(text):
+    """(text, True) with paragraph breaks added when it uses one paragraph per line."""
+    if one_paragraph_per_line(text):
+        return add_paragraph_breaks(text), True
+    return text, False
+
+
 def read_upload(filename, data):
-    """(title or None, text, extra header lines) for one supported file."""
+    """(title or None, text, extra header lines, spacing added?) for one supported file."""
     ext = os.path.splitext(filename)[1].lower()
     if ext == ".docx":
         title, text = docx_to_markdown(data)
-        return title, text, []
+        return title, text, [], False
     text = data.decode("utf-8-sig", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
     if ext in (".md", ".markdown"):
         lines, body = split_front_matter(text)
         extra = [l for l in lines if l.partition(":")[0].strip() != "title"]
-        return header_title(lines), body, extra
-    return None, text, []
+        body, added = spaced(body)
+        return header_title(lines), body, extra, added
+    text, added = spaced(text)
+    return None, text, [], added
 
 
 # ----- THE PLAN: what an import would do -----
@@ -193,7 +267,7 @@ def build_plan(uploads):
             skipped.append({"path": path, "reason": reason})
             continue
         try:
-            title, text, extra = read_upload(name, data)
+            title, text, extra, added = read_upload(name, data)
         except Exception:
             skipped.append({"path": path, "reason": "Could not read this file"})
             continue
@@ -201,7 +275,7 @@ def build_plan(uploads):
             "path": path,
             "folders": parts[1:-1] if root else parts[:-1],
             "title": (title or os.path.splitext(name)[0]).strip() or "Untitled",
-            "kind": KINDS[ext],
+            "kind": KINDS[ext] + (" · paragraph spacing added" if added else ""),
             "text": text,
             "extra": extra,
         })

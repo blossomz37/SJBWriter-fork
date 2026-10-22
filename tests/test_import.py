@@ -43,8 +43,49 @@ class ReadingFiles(ImportTestCase):
         self.assertEqual(title, "The Lighthouse")
 
     def test_markdown_header_and_tags_are_read(self):
-        title, text, extra = self.app.read_upload("a.md", b'---\ntitle: "Opening"\ntags: [draft]\n---\n\nShe ran.')
-        self.assertEqual((title, text, extra), ("Opening", "She ran.", ["tags: [draft]"]))
+        title, text, extra, added = self.app.read_upload("a.md", b'---\ntitle: "Opening"\ntags: [draft]\n---\n\nShe ran.')
+        self.assertEqual((title, text, extra, added), ("Opening", "She ran.", ["tags: [draft]"], False))
+
+
+class ParagraphSpacing(ImportTestCase):
+    ONE_PER_LINE = ("The streets were a maze of decay, and every turn was a gamble.\n"
+                    "His boots clattered on the stones as he ran.\n"
+                    "It was the voice.\n"
+                    "*\"Let me in. I can help you.\"*\n"
+                    "He did not answer.")
+
+    def test_one_paragraph_per_line_gets_empty_lines(self):
+        text, added = self.app.spaced(self.ONE_PER_LINE)
+        self.assertTrue(added)
+        self.assertEqual(text.split("\n\n"), self.ONE_PER_LINE.split("\n"))
+
+    def test_text_wrapped_at_a_fixed_width_is_left_alone(self):
+        wrapped = ("The streets were a maze of decay, and every turn was a\n"
+                   "gamble with death. His boots clattered on the broken\n"
+                   "stones as he ran into the shadows of the old city.\n\n"
+                   "Somewhere behind him the enforcers were closing in, their\n"
+                   "heavy steps cutting through the noise of the market.")
+        self.assertEqual(self.app.spaced(wrapped), (wrapped, False))
+
+    def test_already_spaced_text_is_left_alone(self):
+        text = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph."
+        self.assertEqual(self.app.spaced(text), (text, False))
+
+    def test_lists_quotes_and_code_stay_together(self):
+        text = ("One.\nTwo.\nThree.\n- first\n- second\n> quote one\n> quote two\n"
+                "```\ncode line\ncode line\n```\nFour.")
+        out = self.app.add_paragraph_breaks(text)
+        self.assertIn("- first\n- second", out)
+        self.assertIn("> quote one\n> quote two", out)
+        self.assertIn("code line\ncode line", out)
+        self.assertIn("One.\n\nTwo.\n\nThree.", out)
+
+    def test_import_adds_spacing_and_says_so(self):
+        data = self.upload("/import/preview", [("Chapter 1.txt", self.ONE_PER_LINE.encode())]).get_json()
+        self.assertEqual(data["items"][0]["kind"], "Text · paragraph spacing added")
+        self.upload("/import", [("Chapter 1.txt", self.ONE_PER_LINE.encode())], section="writing")
+        content = self.app.read_doc(self.path("Projects", "book", "writing", "chapter-1-2.md"))["content"]
+        self.assertEqual(content.count("\n\n"), 4)
 
 
 class Preview(ImportTestCase):

@@ -248,10 +248,38 @@ let previewOn = false;
 
 let previewFrame = null;
 
+// One line, one paragraph: the same rule as the Word export. Markdown joins
+// lines that have no empty line between them into one paragraph, so the
+// preview adds that empty line. Code blocks, and lines inside one list, quote,
+// or table, stay together.
+function paragraphPerLine(text) {
+  const kind = line =>
+    /^\s*([-*+]|\d+[.)])\s/.test(line) ? "list"
+    : /^\s*>/.test(line) ? "quote"
+    : /^\s*\|/.test(line) ? "table"
+    : "text";
+  const fence = line => /^\s*(```|~~~)/.test(line);
+  const lines = text.split("\n");
+  const out = [];
+  let inCode = false;
+
+  lines.forEach((line, i) => {
+    out.push(line);
+    if (fence(line)) inCode = !inCode;
+    const next = lines[i + 1];
+    if (inCode || next === undefined || !line.trim() || !next.trim()) return;
+    const a = kind(line), b = kind(next);
+    if (a === b && a !== "text") return;            // the next item of the same list, quote, or table
+    if (a === "list" && /^\s+\S/.test(next)) return;  // an indented line that continues a list item
+    out.push("");
+  });
+  return out.join("\n");
+}
+
 function renderPreview() {
   previewFrame = null;
 
-  const html = marked.parse(editor.value, { gfm: true, breaks: true });
+  const html = marked.parse(paragraphPerLine(editor.value), { gfm: true, breaks: true });
   preview.innerHTML = DOMPurify.sanitize(html);
 
   preview.querySelectorAll("a[href]").forEach(a => {
