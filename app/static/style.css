@@ -817,6 +817,7 @@ input[type="radio"] {
 }
 
 #projectDropdown {
+  position: relative;   /* anchors its tooltip */
   display: flex;
   align-items: center;
   gap: 8px;
