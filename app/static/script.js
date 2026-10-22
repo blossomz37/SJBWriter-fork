@@ -257,6 +257,36 @@ function iconSvg(name) {
 }
 
 
+// =====================
+// TOASTS: non-blocking messages in place of alert()
+// =====================
+
+function showToast(message, kind = "error") {
+  let stack = document.getElementById("toastStack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.id = "toastStack";
+    stack.className = "toast-stack";
+    stack.setAttribute("aria-live", "polite");
+    document.body.appendChild(stack);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${kind}`;
+  toast.setAttribute("role", kind === "error" ? "alert" : "status");
+  toast.textContent = message ? String(message) : "Something went wrong.";
+
+  const dismiss = () => {
+    toast.classList.add("toast-leaving");
+    setTimeout(() => toast.remove(), 200);
+  };
+  toast.onclick = dismiss;
+
+  stack.appendChild(toast);
+  setTimeout(dismiss, kind === "error" ? 7000 : 3500);
+}
+
+
 // TOKEN ESTIMATE
 function estimateTokens(text) {
   return Math.floor(text.length / 4);
@@ -800,7 +830,7 @@ async function saveModelChanges() {
   );
   const data = await res.json();
   if (data.error) {
-    alert(data.error);
+    showToast(data.error);
     return;
   }
   await fetchModels();
@@ -847,7 +877,7 @@ async function createModel() {
 
   if (!payload.id || !payload.name) {
 
-    alert("Model ID and Name required");
+    showToast("Model ID and Name required", "info");
     return;
   }
 
@@ -868,7 +898,7 @@ async function createModel() {
 
   if (data.error) {
 
-    alert(data.error);
+    showToast(data.error);
     return;
   }
 
@@ -1005,7 +1035,7 @@ async function deleteModel(modelId) {
   const data = await res.json();
 
   if (data.status !== "deleted") {
-    alert(data.error || "Delete failed");
+    showToast(data.error || "Delete failed");
     return;
   }
 
@@ -1029,7 +1059,7 @@ async function moveModel(modelId, direction) {
   const data = await res.json();
 
   if (data.status !== "moved") {
-    alert(data.error || "Move failed");
+    showToast(data.error || "Move failed");
     return;
   }
 
@@ -1097,7 +1127,7 @@ async function moveModelToPosition(
 
     if (data.status !== "moved") {
 
-      alert(data.error || "Move failed");
+      showToast(data.error || "Move failed");
 
       return;
     }
@@ -1327,7 +1357,7 @@ function toggleProjectMenu(e) {
 
     } else {
 
-      alert(data.error || "Failed to create project");
+      showToast(data.error || "Failed to create project");
     }
 
     menu.remove();
@@ -1371,7 +1401,7 @@ function toggleProjectMenu(e) {
 
     } else {
 
-      alert(data.error || "Rename failed");
+      showToast(data.error || "Rename failed");
     }
 
     menu.remove();
@@ -1385,13 +1415,13 @@ function toggleProjectMenu(e) {
   del.onclick = async () => {
 
     if (projects.length <= 1) {
-      alert("At least one project must exist.");
+      showToast("At least one project must exist.", "info");
       return;
     }
 
     if (currentProject === "default") {
 
-      alert("Cannot delete default project");
+      showToast("Cannot delete default project", "info");
       return;
     }
 
@@ -1430,7 +1460,7 @@ function toggleProjectMenu(e) {
 
     } else {
 
-      alert(data.error || "Delete failed");
+      showToast(data.error || "Delete failed");
     }
 
     menu.remove();
@@ -1531,11 +1561,11 @@ function toggleProjectDropdown(e) {
           loadSelections();
           await loadAll();
         } else {
-          alert(data.error || "Failed to switch project");
+          showToast(data.error || "Failed to switch project");
         }
       } catch (error) {
         console.error("Project switch failed:", error);
-        alert("Failed to switch project.");
+        showToast("Failed to switch project.");
       }
 
       closeMenu();
@@ -1711,7 +1741,7 @@ function clearPrompt() {
 
 async function generate() {
   if (!settings.modelName) {
-    alert("Please select a model in Settings.");
+    showToast("Please select a model in Settings.", "info");
     return;
   }
 
@@ -1764,7 +1794,7 @@ updateUndoButton();
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      alert(errData.error || `Generation failed (${res.status})`);
+      showToast(errData.error || `Generation failed (${res.status})`);
       generationUndoStack.pop();
       updateUndoButton();
       return;
@@ -1851,7 +1881,7 @@ function stopGeneration() {
 
 function undoLastGeneration() {
   if (generationUndoStack.length === 0) {
-    alert("Nothing to undo.");
+    showToast("Nothing to undo.", "info");
     return;
   }
   const snapshot = generationUndoStack.pop();
@@ -1982,7 +2012,7 @@ async function createNew(section) {
     await openFile(section, data.filename);
 
   } else {
-    alert(data.error || "Error creating file");
+    showToast(data.error || "Error creating file");
   }
 }
 // ===================
@@ -2020,7 +2050,7 @@ async function createFolder(section) {
 
   } else {
 
-    alert(data.error || "Error creating folder");
+    showToast(data.error || "Error creating folder");
   }
 }
 
@@ -2341,7 +2371,7 @@ function createProjectRow(project) {
 
     } else {
 
-      alert(data.error || "Failed to switch project");
+      showToast(data.error || "Failed to switch project");
     }
   };
 
@@ -2377,7 +2407,7 @@ async function createProject() {
 
   } else {
 
-    alert(data.error || "Failed to create project");
+    showToast(data.error || "Failed to create project");
   }
 }
 
@@ -3046,7 +3076,7 @@ function toggleFolderMenu(
 
     } else {
 
-      alert(
+      showToast(
         data.error ||
         "Error creating file"
       );
@@ -3101,7 +3131,7 @@ function toggleFolderMenu(
 
     } else {
 
-      alert(
+      showToast(
         data.error ||
         "Rename failed"
       );
@@ -3155,7 +3185,7 @@ function toggleFolderMenu(
 
     } else {
 
-      alert(
+      showToast(
         data.error ||
         "Delete failed"
       );
@@ -3499,7 +3529,7 @@ function toggleMenu(row, section, filename) {
       await loadAll();
 
     } else {
-      alert(data.error);
+      showToast(data.error);
     }
   };
 
@@ -3582,7 +3612,7 @@ function toggleMenu(row, section, filename) {
 
     } else {
 
-      alert(data.error);
+      showToast(data.error);
     }
   };
 
@@ -3899,7 +3929,7 @@ async function restoreSelectedVersion() {
   const data = await res.json();
 
   if (data.status !== "restored") {
-    alert(data.error || "Restore failed");
+    showToast(data.error || "Restore failed");
     return;
   }
 
@@ -4005,7 +4035,7 @@ function closeSettings(restoreModel = false) {
 
 
 function addModelRow() {
-  alert("Add Model UI coming next.");
+  showToast("Add Model UI coming next.", "info");
 }
 
 
@@ -4204,7 +4234,7 @@ function saveSelections() {
 async function openFile(section, filename) {
 
   if (isGenerating) {
-    alert("Please wait for generation to finish before switching files.");
+    showToast("Please wait for generation to finish before switching files.", "info");
     return;
   }
 
@@ -4224,7 +4254,7 @@ async function openFile(section, filename) {
   const data = await res.json();
 
   if (!res.ok) {
-    alert(data.error || "Failed to load file");
+    showToast(data.error || "Failed to load file");
     return;
   }
 
