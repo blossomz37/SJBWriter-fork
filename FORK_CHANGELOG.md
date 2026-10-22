@@ -9,6 +9,48 @@ fork.
 
 ---
 
+## 2026-10-22: Resizable sidebar and AI setup panel
+
+**Commit:** `2133d21`. **Files:** `app/templates/index.html`,
+`app/static/script.js`, `app/static/style.css`.
+
+- **What the user sees:**
+  - Hovering the inner edge of the sidebar (its right edge) or of the AI setup
+    panel (its left edge) shows a 2 px line in the current accent color and a
+    ↔ cursor.
+  - Dragging resizes the panel. Double-clicking the edge resets it to the
+    default width.
+  - Widths are remembered per browser.
+- **Limits:** the sidebar is 200–520 px and the AI panel is 240–520 px. While
+  dragging, a panel also stops where the editor would drop below 360 px.
+  Both panels also have `max-width: 45vw`, so a width saved on a big screen
+  cannot crowd a small window.
+- **How:**
+  - Each panel holds a `.resize-handle` (`role="separator"`): an 8 px
+    absolute strip on its inner edge. Its `::after` is the 2 px line, which
+    turns `var(--accent)` on hover or while dragging, after a short delay so
+    passing over it does not flicker.
+  - `initPanelResize()` uses pointer events with pointer capture. The new
+    width is clamped and written to a CSS variable on `<html>`:
+    `--sidebar-w`, or the existing `--ai-panel-w`. Without a saved value, each
+    panel keeps its previous responsive default.
+  - It is saved to `localStorage` (`sjb_sidebar_w`, `sjb_ai_panel_w`) on
+    release. Double-click clears it.
+  - While dragging, `body.is-resizing` keeps the resize cursor, turns off text
+    selection, and turns off the sidebar's width animation, so the panel
+    follows the pointer exactly.
+  - The toolbars re-fit on their own, because their `ResizeObserver` watches
+    the writing area.
+- **Tested:**
+  - **Drags:** 350 px; the far left clamps at 200; the far right clamps at
+    520; the AI panel clamps at 520, with the editor still at 400.
+  - **Reload:** the widths stay.
+  - **Double-click:** resets the width.
+  - **Collapsed sidebar:** still goes to 0.
+  - **Hover line:** it matched the accent, `rgb(13, 148, 136)` for teal.
+
+---
+
 ## 2026-10-22: Sticky top bar, two layout bugs, and logo first
 
 **Commit:** `3b8b31f`. **Files:** `app/templates/index.html`,
