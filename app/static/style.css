@@ -1,28 +1,10 @@
 /* ===================== THEME VARIABLES ===================== */
+/* Appearance = mode (light / dark) × accent. JS sets body.mode-dark and
+   body.accent-<name>; legacy theme names map onto these in script.js. */
 :root {
-  --bg: #ffffff;
-  --text: #000000;
-  --text-muted: #666666;
-  --panel-text: #000000;
-  --panel: #f5f5f5;
-  --surface: #ffffff;
-  --border: #cccccc;
-  --hover: #eeeeee;
-  --active: #dbeafe;
-  --accent: #3b82f6;
-
-  --input-bg: #ffffff;
-  --input-text: #000000;
-  --input-border: #cccccc;
-  --placeholder: rgba(0,0,0,0.45);
-
-  --scrollbar: #c4c4c4;
-  --scrollbar-hover: #9a9a9a;
-
-  /* Select chevrons: dark stroke for light themes, light stroke for dark themes */
+  /* Select chevrons: dark stroke for light mode, light stroke for dark mode */
   --chevron-on-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --chevron-on-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ccc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  --chevron: var(--chevron-on-light);
 
   /* Editor text column width */
   --editor-measure: 70ch;
@@ -30,88 +12,68 @@
   --statusbar-h: 26px;
 }
 
-body.dark {
-  --bg: #1e1e1e;
-  --text: #e5e5e5;
-  --text-muted: #999;
-  --panel-text: #e5e5e5;
-  --panel: #2a2a2a;
-  --surface: #3a3a3a;
-  --border: #444;
-  --hover: #333;
-  --active: #3b82f6;
-  --accent: #3b82f6;
-
-  --input-bg: rgb(95, 95, 95);
-  --input-text: white;
-  --input-border: rgba(255,255,255,0.15);
-  --placeholder: rgba(255,255,255,0.55);
-  --scrollbar: rgb(110,110,110);
-  --scrollbar-hover: rgb(140,140,140);
-  --chevron: var(--chevron-on-dark);
-}
-
-body.crimson {
-  --bg: #1a0a0a;
-  --text: #e5e5e5;
-  --text-muted: #b89a9a;
-  --panel-text: #f5e0e0;
-  --panel: #2a1515;
-  --surface: #3a1f1f;
-  --border: #8B0000;
-  --hover: #3d1a1a;
-  --active: #8B0000;
-  --accent: #cc2222;
-
-  --input-bg: #3a1f1f;
-  --input-text: #f5e0e0;
-  --input-border: #8B0000;
-  --placeholder: rgba(245,224,224,0.55);
-  --scrollbar: #8B0000;
-  --scrollbar-hover: #cc2222;
-  --chevron: var(--chevron-on-dark);
-}
-
-body.dark-stellar {
-  --bg: #0d1117;
-  --text: #e5e5e5;
-  --text-muted: #91a4bb;
-  --panel-text: #e0eaf5;
-  --panel: #1a2332;
-  --surface: #243448;
-  --border: #2a4a6e;
-  --hover: #1e2d42;
-  --active: #3a6496;
-  --accent: #4a7ab5;
-
-  --input-bg: #243448;
-  --input-text: #e0eaf5;
-  --input-border: #2a4a6e;
-  --placeholder: rgba(224,234,245,0.55);
-  --scrollbar: #3a6496;
-  --scrollbar-hover: #4a7ab5;
-  --chevron: var(--chevron-on-dark);
-}
-
-body.light-stellar {
-  --bg: #f0f5ff;
-  --text: #000000;
-  --text-muted: #58718a;
-  --panel-text: #000000;
-  --panel: #ddeeff;
+/* Light mode (default) */
+body {
+  color-scheme: light;
+  --bg: #ffffff;
+  --text: #1f2328;
+  --text-muted: #6b7280;
+  --panel-text: #1f2328;
+  --panel: #f6f7f9;
   --surface: #ffffff;
-  --border: #7ab0e0;
-  --hover: #cce0f5;
-  --active: #4a90d9;
-  --accent: #2a7fd4;
+  --border: #e3e5e8;
+  --hover: #eceef1;
 
   --input-bg: #ffffff;
-  --input-text: #000000;
-  --input-border: #7ab0e0;
-  --placeholder: rgba(0,0,0,0.45);
-  --scrollbar: #4a90d9;
-  --scrollbar-hover: #2a7fd4;
+  --input-text: #1f2328;
+  --input-border: #d5d8dc;
+  --placeholder: rgba(31,35,40,0.45);
+
+  --scrollbar: #c9cdd2;
+  --scrollbar-hover: #a3a9b0;
+  --chevron: var(--chevron-on-light);
+
+  /* Accent: each accent class sets a light-mode and a dark-mode shade */
+  --accent-light: #2563eb;
+  --accent-dark: #60a5fa;
+  --accent: var(--accent-light);
+  --accent-contrast: #ffffff;
+  --active: color-mix(in srgb, var(--accent) 14%, var(--bg));
 }
+
+/* Dark mode; color-scheme also darkens native checkboxes and menus */
+body.mode-dark {
+  color-scheme: dark;
+  --bg: #17181b;
+  --text: #e6e7e9;
+  --text-muted: #9097a0;
+  --panel-text: #e6e7e9;
+  --panel: #1e2024;
+  --surface: #26282d;
+  --border: #2f3237;
+  --hover: #2a2d32;
+
+  --input-bg: #202226;
+  --input-text: #e6e7e9;
+  --input-border: #363a40;
+  --placeholder: rgba(230,231,233,0.45);
+
+  --scrollbar: #3d4148;
+  --scrollbar-hover: #545a62;
+  --chevron: var(--chevron-on-dark);
+
+  --accent: var(--accent-dark);
+  --accent-contrast: #111317;
+  --active: color-mix(in srgb, var(--accent) 26%, var(--bg));
+}
+
+/* Accents */
+body.accent-blue    { --accent-light: #2563eb; --accent-dark: #60a5fa; }
+body.accent-indigo  { --accent-light: #4f46e5; --accent-dark: #818cf8; }
+body.accent-teal    { --accent-light: #0d9488; --accent-dark: #2dd4bf; }
+body.accent-crimson { --accent-light: #dc2626; --accent-dark: #f87171; }
+body.accent-amber   { --accent-light: #b45309; --accent-dark: #fbbf24; }
+body.accent-violet  { --accent-light: #7c3aed; --accent-dark: #a78bfa; }
 
 
 /* ===================== FORM FIELDS ===================== */
@@ -1204,7 +1166,7 @@ input[type="radio"] {
 #previewToggle[aria-pressed="true"] {
   background-color: var(--accent);
   border-color: var(--accent);
-  color: #ffffff;
+  color: var(--accent-contrast);
 }
 
 /* Same zone and text column as the editor */
@@ -1560,7 +1522,7 @@ body.zen .zen-exit {
 .primary-btn {
   background-color: var(--accent);
   border-color: var(--accent);
-  color: #ffffff;
+  color: var(--accent-contrast);
 }
 
 .primary-btn:hover {
@@ -1572,4 +1534,197 @@ body.zen .zen-exit {
   opacity: 0.45;
   cursor: default;
   filter: none;
+}
+
+
+/* ===================== ICONS & TOOLTIPS ===================== */
+/* Icons come from the Lucide sprite in templates/_icons.html */
+.icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: middle;
+}
+
+.icon-btn {
+  position: relative;
+}
+
+.footer-actions .icon-btn {
+  padding: 6px 9px;
+}
+
+.gear-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.section h3 .icon,
+.dropdown-arrow .icon,
+.folder-arrow .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.dropdown-arrow,
+.folder-arrow,
+.menu-btn {
+  display: inline-flex;
+  align-items: center;
+}
+
+.folder-arrow {
+  color: var(--text-muted);
+}
+
+/* Generate is busy: gentle pulse instead of a text change */
+.is-busy .icon {
+  animation: icon-pulse 1s ease-in-out infinite;
+}
+
+#loadingIndicator {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+#loadingIndicator .icon {
+  animation: icon-spin 0.9s linear infinite;
+}
+
+@keyframes icon-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes icon-pulse {
+  50% { opacity: 0.4; }
+}
+
+/* Instant tooltips from data-tip (native title tooltips wait about a second) */
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background-color: #1f2328;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease 0.15s;
+}
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  opacity: 1;
+}
+
+.tip-up[data-tip]::after {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.tip-end[data-tip]::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.tip-start[data-tip]::after {
+  left: 0;
+  transform: none;
+}
+
+/* Dim disabled icon buttons clearly */
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+
+/* ===================== APPEARANCE SETTINGS ===================== */
+.accent-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.accent-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background-color: var(--swatch);
+  background-clip: padding-box;
+}
+
+.accent-swatch:hover {
+  background-color: var(--swatch);
+  filter: brightness(1.08);
+}
+
+/* Picked swatch: ring in its own color, with a gap */
+.accent-swatch[aria-checked="true"] {
+  border-color: var(--swatch);
+  box-shadow: inset 0 0 0 2px var(--panel);
+}
+
+
+/* ===================== TOASTS ===================== */
+/* Top right, below the toolbar: clear of the AI buttons at the bottom */
+.toast-stack {
+  position: fixed;
+  top: 120px;
+  right: 16px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  max-width: 380px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background-color: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  pointer-events: auto;
+  animation: toast-in 0.18s ease-out;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-error {
+  border-left-color: #ef4444;
+}
+
+.toast-leaving {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
 }

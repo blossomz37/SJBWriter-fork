@@ -9,6 +9,100 @@ fork.
 
 ---
 
+## 2026-10-22: UI polish, batch 3: icons, mode + accent themes, toasts
+
+Three commits. **Files:** `app/templates/index.html`, the new
+`app/templates/_icons.html`, `app/static/script.js`, and
+`app/static/style.css`.
+
+### 1. Lucide icons and instant tooltips (`109e823`)
+
+- **Why:** the controls mixed emoji (⚙️ 📁 ⏹ ↩ ⏳ ▶ ▼ ⋯), which look different
+  on every operating system, with text buttons such as "ClearPrompt".
+- **The icon file:**
+  - 20 icons from Lucide v0.460.0 (ISC license) are bundled as an inline SVG
+    sprite in `templates/_icons.html`.
+  - `index.html` pulls the sprite in with
+    `{% include "_icons.html" %}` right after `<body>`.
+  - Each icon is `<svg class="icon"><use href="#i-NAME"/></svg>`. Icons work
+    offline and take the text color.
+  - Inside JavaScript, `iconSvg(name)` returns the same markup. It is used for
+    the folder arrows and the ⋯ menu buttons.
+- **Buttons that became icon-only:**
+  - Settings
+  - New file and new folder (each sidebar section)
+  - Bold, italic, heading, and bullet list
+  - Generate (in the accent color), Stop, Undo, Save, and Clear instruction
+  - The project dropdown arrow and the ⋯ menus
+  - The sidebar, preview, and zen toggles moved to the sprite too.
+- **Tooltips:**
+  - Each button has `aria-label` and `data-tip`. A CSS `::after` tooltip shows
+    `data-tip` after 0.15 s. The native `title` tooltip waits about a second.
+  - Helper classes: `tip-up` (tooltip above, used in the footer), `tip-end`
+    (aligned to the right edge, so tooltips near the window or sidebar edge are
+    not clipped), and `tip-start`.
+  - Tooltips include the shortcut where there is one, for example
+    "Generate (⌘↵)".
+- **Generate button:** `generate()` used to replace the button's text with
+  "Generating…", which would erase the icon. It now adds an `is-busy` class,
+  which makes the icon pulse, and the button is found by its new
+  `#generateBtn` ID.
+- **Thinking indicator:** it uses a spinning loader icon.
+
+### 2. Mode × accent appearance (`581b8e8`)
+
+- **Why:** the five themes (Light, Dark, Crimson, Dark Stellar, Light Stellar)
+  only changed tints. The accent color was barely used.
+- **How:**
+  - **Tokens:** two neutral palettes. Light is the default on `body`, and dark
+    comes from `body.mode-dark`. They cover background, panel, surface,
+    border, hover, text, inputs, scrollbars, and the select chevron.
+  - **Accents:** six classes set a light-mode and a dark-mode shade, `--accent-light`
+    and `--accent-dark`: blue, indigo, teal, crimson, amber, and violet. The
+    mode then picks one as `--accent`.
+  - **Derived colors:** `--accent-contrast` (white in light mode, near-black in
+    dark mode) colors text on accent buttons. The selection tint `--active` is
+    `color-mix()` of the accent and the background.
+  - `color-scheme: light` / `dark` makes native checkboxes, radios, and menus
+    match the mode.
+  - **"Match system" mode** follows `prefers-color-scheme`, including live
+    changes while the app is open.
+- **Settings → Visual Layout:**
+  - The old Theme list is replaced by a **Mode** picker (Light / Dark / Match
+    system) and six round **Accent color** swatches. The picked swatch shows a
+    ring.
+  - Changes preview live. Back or Cancel restores the saved look, and Save
+    stores `themeMode` and `accent` in `app_state.json`.
+- **Old settings:** an old `theme` value keeps working through a lookup table:
+  - light → light + blue
+  - dark → dark + blue
+  - crimson → dark + crimson
+  - dark-stellar → dark + blue
+  - light-stellar → light + blue
+  - `setTheme(oldName)` still works too.
+
+### 3. Toasts instead of `alert()` (`bfd3881`)
+
+- **Why:** 28 `alert()` pop-ups blocked the whole page, even for "Nothing to
+  undo."
+- **How:**
+  - `showToast(message, kind)` adds a small card to a stack at the top right,
+    below the toolbar. That spot keeps it clear of the AI buttons at the bottom.
+  - **Errors** (red edge) stay for 7 seconds. **Notices** (accent edge, `"info"`)
+    stay for 3.5 seconds. Click a toast to close it.
+  - Errors use `role="alert"`, and the stack is an `aria-live` region.
+  - All 28 `alert()` calls now use it. Seven plain notices pass `"info"`.
+  - `confirm()` and `prompt()` are unchanged, because they need an answer.
+
+**Check:**
+
+1. Hover over any toolbar or footer button for its tooltip.
+2. In Settings → Visual Layout, try Dark + Teal, then Back. The look should
+   return to the saved one.
+3. Press ⌘Enter with no model selected. A toast should appear, not a pop-up.
+
+---
+
 ## 2026-10-22: Safe saving, version history, trash, and name checks
 
 **Commit:** `fbe4ae3`. **Files:** `app/app.py`, `app/static/script.js`,

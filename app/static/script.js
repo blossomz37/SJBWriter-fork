@@ -1,19 +1,72 @@
 let fileCache = {}; // { "section/filename": content }
 
-function setTheme(mode) {
-  document.body.classList.remove("dark", "crimson", "dark-stellar", "light-stellar");
-  if (mode !== "light") {
-    document.body.classList.add(mode);
-  }
+// =====================
+// APPEARANCE: MODE (light / dark / system) × ACCENT
+// =====================
+
+const ACCENTS = ["blue", "indigo", "teal", "crimson", "amber", "violet"];
+
+// Old single-theme names map onto mode + accent
+const LEGACY_THEMES = {
+  "light": ["light", "blue"],
+  "dark": ["dark", "blue"],
+  "crimson": ["dark", "crimson"],
+  "dark-stellar": ["dark", "blue"],
+  "light-stellar": ["light", "blue"]
+};
+
+const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
+
+function applyAppearance(mode, accent) {
+  const dark = mode === "dark" || (mode === "system" && systemDark.matches);
+  document.body.classList.toggle("mode-dark", dark);
+  ACCENTS.forEach(a => {
+    document.body.classList.toggle(`accent-${a}`, a === accent);
+  });
+  document.body.dataset.mode = mode;
+  document.body.dataset.accent = accent;
 }
 
-function previewTheme(mode) {
-  setTheme(mode);
+function savedAppearance() {
+  const appState = state.app_state || {};
+  const legacy = LEGACY_THEMES[appState.theme] || ["light", "blue"];
+  return {
+    mode: appState.themeMode || legacy[0],
+    accent: ACCENTS.includes(appState.accent) ? appState.accent : legacy[1]
+  };
+}
+
+// Still accepts the old theme names
+function setTheme(theme) {
+  const [mode, accent] = LEGACY_THEMES[theme] || [theme, "blue"];
+  applyAppearance(mode, accent);
+}
+
+// In "Match system" mode, follow the OS as it switches
+systemDark.addEventListener("change", () => {
+  if (document.body.dataset.mode === "system") {
+    applyAppearance("system", document.body.dataset.accent);
+  }
+});
+
+function pickAccent(accent) {
+  document.querySelectorAll(".accent-swatch").forEach(swatch => {
+    swatch.setAttribute("aria-checked", String(swatch.dataset.accent === accent));
+  });
+  previewAppearance();
+}
+
+// Settings > Visual: show choices live; Back/Cancel restores the saved look
+function previewAppearance() {
+  const mode = document.getElementById("themeModeSelect").value;
+  const accent =
+    document.querySelector('.accent-swatch[aria-checked="true"]')?.dataset.accent || "blue";
+  applyAppearance(mode, accent);
 }
 
 function loadTheme() {
-  const saved = state.app_state.theme || "light";
-  setTheme(saved);
+  const { mode, accent } = savedAppearance();
+  applyAppearance(mode, accent);
   const savedSize =
     state.app_state.sidebarFontSize || "13px";
   applySidebarFontSize(savedSize);
@@ -195,6 +248,42 @@ async function changeEditorSize(size) {
     })
   });
   editor.focus();
+}
+
+
+// Inline icon from the sprite in _icons.html
+function iconSvg(name) {
+  return `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+}
+
+
+// =====================
+// TOASTS: non-blocking messages in place of alert()
+// =====================
+
+function showToast(message, kind = "error") {
+  let stack = document.getElementById("toastStack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.id = "toastStack";
+    stack.className = "toast-stack";
+    stack.setAttribute("aria-live", "polite");
+    document.body.appendChild(stack);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${kind}`;
+  toast.setAttribute("role", kind === "error" ? "alert" : "status");
+  toast.textContent = message ? String(message) : "Something went wrong.";
+
+  const dismiss = () => {
+    toast.classList.add("toast-leaving");
+    setTimeout(() => toast.remove(), 200);
+  };
+  toast.onclick = dismiss;
+
+  stack.appendChild(toast);
+  setTimeout(dismiss, kind === "error" ? 7000 : 3500);
 }
 
 
@@ -741,7 +830,7 @@ async function saveModelChanges() {
   );
   const data = await res.json();
   if (data.error) {
-    alert(data.error);
+    showToast(data.error);
     return;
   }
   await fetchModels();
@@ -788,7 +877,7 @@ async function createModel() {
 
   if (!payload.id || !payload.name) {
 
-    alert("Model ID and Name required");
+    showToast("Model ID and Name required", "info");
     return;
   }
 
@@ -809,7 +898,7 @@ async function createModel() {
 
   if (data.error) {
 
-    alert(data.error);
+    showToast(data.error);
     return;
   }
 
@@ -946,7 +1035,7 @@ async function deleteModel(modelId) {
   const data = await res.json();
 
   if (data.status !== "deleted") {
-    alert(data.error || "Delete failed");
+    showToast(data.error || "Delete failed");
     return;
   }
 
@@ -970,7 +1059,7 @@ async function moveModel(modelId, direction) {
   const data = await res.json();
 
   if (data.status !== "moved") {
-    alert(data.error || "Move failed");
+    showToast(data.error || "Move failed");
     return;
   }
 
@@ -1038,7 +1127,7 @@ async function moveModelToPosition(
 
     if (data.status !== "moved") {
 
-      alert(data.error || "Move failed");
+      showToast(data.error || "Move failed");
 
       return;
     }
@@ -1059,6 +1148,8 @@ function openVisualPanel() {
 }
 
 function closeVisualPanel() {
+  const { mode, accent } = savedAppearance();
+  applyAppearance(mode, accent);
   document.getElementById("settingsVisualView").classList.add("hidden");
   document.getElementById("settingsMainLayout").classList.remove("hidden");
 }
@@ -1266,7 +1357,7 @@ function toggleProjectMenu(e) {
 
     } else {
 
-      alert(data.error || "Failed to create project");
+      showToast(data.error || "Failed to create project");
     }
 
     menu.remove();
@@ -1310,7 +1401,7 @@ function toggleProjectMenu(e) {
 
     } else {
 
-      alert(data.error || "Rename failed");
+      showToast(data.error || "Rename failed");
     }
 
     menu.remove();
@@ -1324,13 +1415,13 @@ function toggleProjectMenu(e) {
   del.onclick = async () => {
 
     if (projects.length <= 1) {
-      alert("At least one project must exist.");
+      showToast("At least one project must exist.", "info");
       return;
     }
 
     if (currentProject === "default") {
 
-      alert("Cannot delete default project");
+      showToast("Cannot delete default project", "info");
       return;
     }
 
@@ -1369,7 +1460,7 @@ function toggleProjectMenu(e) {
 
     } else {
 
-      alert(data.error || "Delete failed");
+      showToast(data.error || "Delete failed");
     }
 
     menu.remove();
@@ -1470,11 +1561,11 @@ function toggleProjectDropdown(e) {
           loadSelections();
           await loadAll();
         } else {
-          alert(data.error || "Failed to switch project");
+          showToast(data.error || "Failed to switch project");
         }
       } catch (error) {
         console.error("Project switch failed:", error);
-        alert("Failed to switch project.");
+        showToast("Failed to switch project.");
       }
 
       closeMenu();
@@ -1650,7 +1741,7 @@ function clearPrompt() {
 
 async function generate() {
   if (!settings.modelName) {
-    alert("Please select a model in Settings.");
+    showToast("Please select a model in Settings.", "info");
     return;
   }
 
@@ -1662,10 +1753,8 @@ async function generate() {
   document.getElementById("loadingIndicator").style.display = "block";
   await requestWakeLock();
 
-  const button = document.querySelector(".controls button");
-  const originalText = button.innerText;
-
-  button.innerText = "Generating...";
+  const button = document.getElementById("generateBtn");
+  button.classList.add("is-busy");
   button.disabled = true;
 
 // Snapshot before generation
@@ -1705,7 +1794,7 @@ updateUndoButton();
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      alert(errData.error || `Generation failed (${res.status})`);
+      showToast(errData.error || `Generation failed (${res.status})`);
       generationUndoStack.pop();
       updateUndoButton();
       return;
@@ -1760,7 +1849,7 @@ updateUndoButton();
     currentAbortController = null;
     releaseWakeLock();
     document.getElementById("stopGenerateBtn").disabled = true;
-    button.innerText = originalText;
+    button.classList.remove("is-busy");
     button.disabled = false;
     document.getElementById("loadingIndicator").style.display = "none";
   }
@@ -1792,7 +1881,7 @@ function stopGeneration() {
 
 function undoLastGeneration() {
   if (generationUndoStack.length === 0) {
-    alert("Nothing to undo.");
+    showToast("Nothing to undo.", "info");
     return;
   }
   const snapshot = generationUndoStack.pop();
@@ -1923,7 +2012,7 @@ async function createNew(section) {
     await openFile(section, data.filename);
 
   } else {
-    alert(data.error || "Error creating file");
+    showToast(data.error || "Error creating file");
   }
 }
 // ===================
@@ -1961,7 +2050,7 @@ async function createFolder(section) {
 
   } else {
 
-    alert(data.error || "Error creating folder");
+    showToast(data.error || "Error creating folder");
   }
 }
 
@@ -2282,7 +2371,7 @@ function createProjectRow(project) {
 
     } else {
 
-      alert(data.error || "Failed to switch project");
+      showToast(data.error || "Failed to switch project");
     }
   };
 
@@ -2318,7 +2407,7 @@ async function createProject() {
 
   } else {
 
-    alert(data.error || "Failed to create project");
+    showToast(data.error || "Failed to create project");
   }
 }
 
@@ -2554,7 +2643,8 @@ function renderSection(
 
       // Arrow (collapse/expand toggle)
       const folderArrow = document.createElement("span");
-      folderArrow.textContent = item.collapsed ? "▶" : "▼";
+      folderArrow.className = "folder-arrow";
+      folderArrow.innerHTML = iconSvg(item.collapsed ? "chevron-right" : "chevron-down");
       folderArrow.style.cursor = "pointer";
       folderArrow.style.flexShrink = "0";
       folderArrow.onclick = async () => {
@@ -2643,7 +2733,7 @@ function renderSection(
 
       const menuBtn =
         document.createElement("span");
-      menuBtn.textContent = "⋯";
+      menuBtn.innerHTML = iconSvg("ellipsis");
       menuBtn.classList.add("menu-btn");
       menuBtn.onclick = (e) => {
         e.stopPropagation();
@@ -2852,7 +2942,7 @@ function renderSection(
 
     // Ellipsis Button
     const menuBtn = document.createElement('span');
-    menuBtn.textContent = "⋯";
+    menuBtn.innerHTML = iconSvg("ellipsis");
     menuBtn.classList.add("menu-btn");
 
     menuBtn.onclick = (e) => {
@@ -2986,7 +3076,7 @@ function toggleFolderMenu(
 
     } else {
 
-      alert(
+      showToast(
         data.error ||
         "Error creating file"
       );
@@ -3041,7 +3131,7 @@ function toggleFolderMenu(
 
     } else {
 
-      alert(
+      showToast(
         data.error ||
         "Rename failed"
       );
@@ -3095,7 +3185,7 @@ function toggleFolderMenu(
 
     } else {
 
-      alert(
+      showToast(
         data.error ||
         "Delete failed"
       );
@@ -3439,7 +3529,7 @@ function toggleMenu(row, section, filename) {
       await loadAll();
 
     } else {
-      alert(data.error);
+      showToast(data.error);
     }
   };
 
@@ -3522,7 +3612,7 @@ function toggleMenu(row, section, filename) {
 
     } else {
 
-      alert(data.error);
+      showToast(data.error);
     }
   };
 
@@ -3839,7 +3929,7 @@ async function restoreSelectedVersion() {
   const data = await res.json();
 
   if (data.status !== "restored") {
-    alert(data.error || "Restore failed");
+    showToast(data.error || "Restore failed");
     return;
   }
 
@@ -3945,7 +4035,7 @@ function closeSettings(restoreModel = false) {
 
 
 function addModelRow() {
-  alert("Add Model UI coming next.");
+  showToast("Add Model UI coming next.", "info");
 }
 
 
@@ -4002,14 +4092,17 @@ async function saveSettings() {
 }
 
 async function saveVisualSettings() {
-  const theme = document.getElementById("themeSelect").value;
+  const themeMode = document.getElementById("themeModeSelect").value;
+  const accent =
+    document.querySelector('.accent-swatch[aria-checked="true"]')?.dataset.accent || "blue";
   const sidebarFontSize =
     document.getElementById("sidebarFontSize").value;
 
-  setTheme(theme);
+  applyAppearance(themeMode, accent);
   applySidebarFontSize(sidebarFontSize);
 
-  state.app_state.theme = theme;
+  state.app_state.themeMode = themeMode;
+  state.app_state.accent = accent;
   state.app_state.sidebarFontSize = sidebarFontSize;
   state.app_state.showWritingCounts =
    document.getElementById("showWritingCounts").checked;
@@ -4038,7 +4131,8 @@ async function saveVisualSettings() {
         state.app_state.showSystemCounts,
       showFolderTotals:
         state.app_state.showFolderTotals,
-      theme: state.app_state.theme,
+      themeMode: state.app_state.themeMode,
+      accent: state.app_state.accent,
       sidebarFontSize: state.app_state.sidebarFontSize
     })
   });
@@ -4068,8 +4162,6 @@ function loadSettingsIntoUI() {
     state.app_state.showSystemCounts;
   document.getElementById("showFolderTotals").checked =
     state.app_state.showFolderTotals;
-  document.getElementById("themeSelect").value =
-    state.app_state.theme || "light";
   document.getElementById("sidebarFontSize").value =
     state.app_state.sidebarFontSize || "13px";
   document.getElementById("showOutputMarkers").checked =
@@ -4081,8 +4173,9 @@ function loadSettingsIntoUI() {
 }
 
 function loadVisualSettingsIntoUI() {
-  document.getElementById("themeSelect").value =
-    state.app_state.theme || "light";
+  const { mode, accent } = savedAppearance();
+  document.getElementById("themeModeSelect").value = mode;
+  pickAccent(accent);
   document.getElementById("sidebarFontSize").value =
     state.app_state.sidebarFontSize || "13px";
 }
@@ -4141,7 +4234,7 @@ function saveSelections() {
 async function openFile(section, filename) {
 
   if (isGenerating) {
-    alert("Please wait for generation to finish before switching files.");
+    showToast("Please wait for generation to finish before switching files.", "info");
     return;
   }
 
@@ -4161,7 +4254,7 @@ async function openFile(section, filename) {
   const data = await res.json();
 
   if (!res.ok) {
-    alert(data.error || "Failed to load file");
+    showToast(data.error || "Failed to load file");
     return;
   }
 
