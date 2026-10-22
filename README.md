@@ -67,7 +67,7 @@ Ollama is optional. An OpenRouter API key is also optional and is needed only if
 4. Install the required Python packages:
 
    ```bash
-   python3 -m pip install flask requests
+   python3 -m pip install -r requirements.txt
    ```
 
 5. Start the application:
