@@ -338,6 +338,40 @@
   </div>
 </div>
 
+<!-- ===================== IMPORT MODAL (project menu) ===================== -->
+<div id="importModal" class="modal hidden">
+  <div class="modal-content import-content">
+    <button type="button" class="icon-btn ghost-btn modal-close tip-end" onclick="closeImport()" data-tip="Close (Esc)" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    <h2>Import</h2>
+    <p class="trash-hint">Markdown, plain text, and Word (.docx) files. You see what will come in before anything is added, and your original files are never changed.</p>
+    <div class="import-pick">
+      <button type="button" onclick="pickImport('files')">Choose files…</button>
+      <button type="button" onclick="pickImport('folder')">Choose a folder…</button>
+      <input type="file" id="importFiles" multiple accept=".md,.markdown,.txt,.docx" hidden />
+      <input type="file" id="importFolder" webkitdirectory multiple hidden />
+    </div>
+    <div id="importPreview" class="import-preview hidden">
+      <p id="importSummary" class="import-summary"></p>
+      <div id="importList" class="import-list"></div>
+      <fieldset class="export-group">
+        <legend>Import into</legend>
+        <label><input type="radio" name="importDest" value="project" checked /> <span id="importThisProject">This project</span></label>
+        <label class="import-new"><input type="radio" name="importDest" value="new" /> A new project named <input type="text" id="importProjectName" aria-label="New project name" /></label>
+      </fieldset>
+      <fieldset class="export-group">
+        <legend>Section</legend>
+        <label><input type="radio" name="importSection" value="writing" checked /> Writing</label>
+        <label><input type="radio" name="importSection" value="background" /> Background</label>
+      </fieldset>
+      <label class="export-check" id="importKeepRow"><input type="checkbox" id="importKeep" checked /> Keep the folders as sidebar folders</label>
+    </div>
+    <div class="modal-actions">
+      <button type="button" onclick="closeImport()">Cancel</button>
+      <button type="button" id="importRun" class="primary-btn" onclick="runImport(this)" disabled>Import</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== EXPORT MANUSCRIPT MODAL (project menu) ===================== -->
 <div id="exportModal" class="modal hidden">
   <div class="modal-content export-content">

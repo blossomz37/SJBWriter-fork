@@ -12,7 +12,7 @@ fork.
 The dated entries below are newest first. This overview groups them by area;
 each line links to its full entry.
 
-**At a glance (from Jim's version to this fork):** 43 entries, each change
+**At a glance (from Jim's version to this fork):** 44 entries, each change
 tested on a scratch copy before it was merged. Documents moved from JSON to
 Markdown. The server went from one 1,844-line file to 12 small files, and
 the page script from one 3,863-line file to nine. The fork adds 38 server
@@ -30,6 +30,7 @@ Saving is safe, old text is kept, and deletes can be undone.
 
 Your books are plain files you can open anywhere, kept wherever you like.
 
+- [Import documents and folders, with a preview first](#2026-10-22-import-documents-and-folders-with-a-preview-first): Bring in Markdown, text, and Word files or a whole folder, after seeing exactly what will come in.
 - [Documents are Markdown files](#2026-10-22-documents-are-markdown-files): Every document is a `.md` file with a title header; a one-time conversion keeps the old JSON files as backups.
 - [Books folder: keep your books anywhere](#2026-10-22-books-folder-keep-your-books-anywhere): Settings → Books folder picks any folder (for example in an Obsidian vault), with the Mac folder window.
 - [Export to Markdown and Word](#2026-10-22-export-to-markdown-and-word): Export one document, or the whole manuscript, as Markdown or a Word file in standard manuscript format.
@@ -96,6 +97,72 @@ Easier and safer to change.
 - [Housekeeping: tests, requirements, dead code, narrow windows](#2026-10-22-housekeeping-tests-requirements-dead-code-narrow-windows): 38 server tests, `requirements.txt`, dead code removed, and no sideways scroll in narrow windows.
 - [Server code split into small files](#2026-10-22-server-code-split-into-small-files): `app.py` (3,342 lines) is now a 44-line start file plus 11 small files in `app/sjb/`.
 - [Page script split into nine files, plus a browser smoke test](#2026-10-22-page-script-split-into-nine-files-plus-a-browser-smoke-test): `script.js` (5,842 lines) is now nine files in `app/static/js/`, with a browser smoke test.
+
+---
+
+## 2026-10-22: Import documents and folders, with a preview first
+
+One commit (`a6146d8`). **Files:** `app/sjb/importer.py` (new),
+`app/sjb/projects.py`, `app/sjb/storage.py`, `app/app.py`,
+`app/static/js/projects.js`, `app/static/js/windows.js`,
+`app/static/style.css`, `app/templates/index.html`, the help pages,
+`tests/test_import.py`, and `tests/fixtures/`.
+
+**Why:** Authors arrive with work they already wrote elsewhere: Word files,
+Markdown from Obsidian, plain text, or a whole folder of chapters. There was
+no way to bring it in except copying files into the project folders by hand.
+
+**How it works:**
+
+- **Where:** Project ⋯ → **Import…** opens a window with **Choose files…** and
+  **Choose a folder…**. The browser sends the chosen files, and for a folder
+  each file's path inside it.
+- **Preview first** (`POST /import/preview`). Nothing is written yet. The
+  window shows:
+  - each document's title, path, type, and word count,
+  - the skipped files with the reason ("Not a Markdown, text, or Word file";
+    for `.doc`: "Old Word format: open it in Word and save it as .docx"),
+  - totals ("Found 4 documents, 1 folder, 2 skipped.").
+  Hidden files and folders (`.DS_Store`, `.obsidian`) are left out quietly.
+- **The author then chooses:**
+  - **Import into:** this project, or a new project. The new project is named
+    after the folder; a taken name gets a number. This choice resets to "this
+    project" each time the window opens, so a project is never made by
+    accident.
+  - **Section:** Writing or Background.
+  - **Keep the folders** as sidebar folders (shown only when there are
+    folders). An imported folder stays together inside an existing project,
+    under a sidebar folder with its name.
+- **Then** `POST /import` writes the documents:
+  - Order is natural: Chapter 2 comes before Chapter 10.
+  - File names are made fresh from the titles: `chapter-1.md`, or
+    `chapter-1-2.md` when taken, so nothing is overwritten.
+  - Paths from the browser are only used as titles and folder names, never
+    as paths on disk.
+  - The original files are never touched.
+- **Formats:**
+  - **Markdown** keeps its title from the header, plus any other header lines
+    (Obsidian tags). `write_doc` gained an `extra_header` option for this.
+  - **Text** takes its title from the file name.
+  - **Word (.docx)** is read by a built-in reader, with no library needed:
+    headings, bold, italic, bold-italic, bullet lists, numbered lists (read
+    from Word's numbering definitions), quotes ("Quote", "Quotation", "Block
+    Text" styles), and scene breaks. Scene breaks come in whether typed as
+    `* * *` or drawn as a line (LibreOffice's "Horizontal Line" style, or the
+    `o:hr` rule shape that Word and Pandoc use). The title comes from the
+    document properties, or the file name.
+- **Shared code:** Create Project and Import now share one `make_project()`
+  helper.
+
+**Checked:**
+- Eleven new server tests, including two real Word files made by Pandoc and
+  LibreOffice (kept in `tests/fixtures/`). Both convert to the expected
+  Markdown exactly.
+- A browser run imported a folder as a new project, then single files into
+  Background.
+- One real bug was found and fixed during testing: the "new project" choice
+  used to carry over to the next import.
+- The help pages have a new Import section with a screenshot.
 
 ---
 

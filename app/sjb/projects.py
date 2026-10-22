@@ -63,12 +63,21 @@ def api_create_project():
     if not name:
         return jsonify({"error": "Missing project name"}), 400
 
-    project_slug = slugify(name)
-
-    project_dir = os.path.join(paths.PROJECTS_DIR, project_slug)
-
-    if os.path.exists(project_dir):
+    if os.path.exists(os.path.join(paths.PROJECTS_DIR, slugify(name))):
         return jsonify({"error": "Project already exists"}), 400
+
+    project_slug = make_project(name)
+
+    return jsonify({
+        "status": "created",
+        "project": project_slug
+    })
+
+
+def make_project(name, project_slug=None):
+    """Create an empty project folder and open it; returns its id."""
+    project_slug = project_slug or slugify(name)
+    project_dir = os.path.join(paths.PROJECTS_DIR, project_slug)
 
     # Create folders
     os.makedirs(os.path.join(project_dir, "background"))
@@ -109,10 +118,7 @@ def api_create_project():
 
     write_app_state(app_state)
 
-    return jsonify({
-        "status": "created",
-        "project": project_slug
-    })
+    return project_slug
 
 @bp.route('/rename_project', methods=['POST'])
 def api_rename_project():

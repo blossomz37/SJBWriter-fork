@@ -11,12 +11,13 @@ Each part is one file with one job:
   ai         the labeled AI request, OpenRouter, Ollama
   models     the model list and OpenRouter's price list
   export     Markdown and Word export
+  importer   importing documents and folders (Markdown, text, Word)
   settings   API key, app settings, Books folder
 """
 
 from flask import Flask, render_template
 
-from sjb import ai, documents, export, history, models, projects, settings
+from sjb import ai, documents, export, history, importer, models, projects, settings
 from sjb.migrate import accept_old_document_names, migrate_once
 from sjb.storage import reject_unsafe_names
 
@@ -31,7 +32,7 @@ app.before_request(migrate_once)
 app.before_request(accept_old_document_names)
 app.before_request(reject_unsafe_names)
 
-for part in (documents, projects, history, ai, models, export, settings):
+for part in (documents, projects, history, ai, models, export, importer, settings):
     app.register_blueprint(part.bp)
 
 

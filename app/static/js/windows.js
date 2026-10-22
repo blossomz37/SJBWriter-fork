@@ -295,6 +295,7 @@ const MODAL_CLOSERS = {
   trashModal: () => closeTrash(),
   requestModal: () => closeRequestPreview(),
   exportModal: () => closeExport(),
+  importModal: () => closeImport(),
   askModal: () => finishAsk(null)
 };
 
