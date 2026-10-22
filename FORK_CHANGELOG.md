@@ -9,6 +9,24 @@ fork.
 
 ---
 
+## 2026-10-22: Menu text sized like the sidebar
+
+**Commit:** `0f28ad4`. **File:** `app/static/style.css`.
+
+- **Problem:** the pop-up menus had no font size of their own, so they used
+  the browser default of 16 px. That covers the file and folder ⋯ menus, the
+  project ⋯ menu, and the project switcher. Next to the 13 px sidebar rows,
+  they looked oversized.
+- **How:**
+  - `.file-menu`, the class all those menus share, now uses
+    `font-size: var(--sidebar-font-size, 13px)`. The existing **Settings →
+    Visual Layout → Sidebar Font Size** setting (Normal 13 px, Larger 15 px)
+    now controls the menus too.
+  - Menu items got slightly tighter padding (5 px × 10 px), a rounded hover,
+    and the menu a soft shadow, so it reads as floating above the page.
+
+---
+
 ## 2026-10-22: "ALPHA" project menu label renamed
 
 **Commit:** `ee68f2d`. **File:** `app/static/script.js`.
