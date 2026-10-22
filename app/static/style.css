@@ -1611,7 +1611,13 @@ body.zen .zen-exit {
   50% { opacity: 0.4; }
 }
 
-/* Instant tooltips from data-tip (native title tooltips wait about a second) */
+/* Instant tooltips from data-tip (native title tooltips wait about a second).
+   Every tooltip anchors to its own element; an unanchored one would sit
+   against the page instead and stretch it, even while invisible. */
+[data-tip] {
+  position: relative;
+}
+
 [data-tip]::after {
   content: attr(data-tip);
   position: absolute;
@@ -1910,7 +1916,8 @@ body.ai-panel-open .toast-stack {
 
 /* ===================== TOP BAR ===================== */
 .top-bar {
-  position: relative;
+  position: sticky;   /* stays at the top even if the page scrolls */
+  top: 0;
   z-index: 20;   /* tooltips below the bar draw over the panes */
   height: var(--topbar-h);
   display: flex;
@@ -1954,9 +1961,6 @@ body.zen .top-bar {
   color: var(--accent);
 }
 
-.top-bar .top-bar-logo {
-  margin-left: 4px;
-}
 
 
 /* ===================== EMPTY STATE (no document open) ===================== */
@@ -2208,4 +2212,9 @@ body.zen #closeDocBtn {
   .ai-chip {
     min-width: 34px;
   }
+}
+
+/* Zen exit stays pinned to the window corner (beats the generic rules above) */
+#zenExit {
+  position: fixed;
 }
