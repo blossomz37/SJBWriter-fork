@@ -331,6 +331,69 @@ function estimateTokens(text) {
   return Math.floor(text.length / 4);
 }
 
+// OpenRouter's web plugin (Exa): one search, up to 10 results. Models with
+// their own search pass through the provider's price instead.
+const WEB_SEARCH_COST = 0.007;
+
+function formatUSD(amount) {
+  if (amount === 0) return "$0";
+  if (amount < 0.0001) return "<$0.0001";
+  if (amount < 0.01) return `$${Number(amount.toPrecision(2))}`;
+  if (amount < 1) return `$${amount.toFixed(3)}`;
+  return `$${amount.toFixed(2)}`;
+}
+
+// The reply limit the server will use: the setting, capped at the model's own maximum
+function replyLimit() {
+  const wanted = generationSettings().maxTokens;
+  const maxOut = openrouterCatalog?.models[settings.modelName]?.max_out;
+  return wanted && maxOut ? Math.min(wanted, maxOut) : wanted;
+}
+
+// What a request of this size may cost with the chosen model and settings.
+// Prices come from the saved OpenRouter list (refreshed once a day).
+function requestCost(tokens) {
+  if (!settings.modelName) return null;
+  const model = getModelById(settings.modelName);
+  if ((model?.source || settings.modelSource) === "ollama") {
+    return { short: "local", detail: "Ollama runs on this Mac, so it costs nothing." };
+  }
+
+  const info = openrouterCatalog?.models[settings.modelName];
+  const price = info?.price;
+  if (!price || price.in == null || price.out == null) {
+    return {
+      short: "price unknown",
+      detail: "No price for this model yet. Check OpenRouter in Manage Models to get the latest list."
+    };
+  }
+
+  const extras = generationSettings();
+  const limit = replyLimit();
+  const web = extras.webSearch ? WEB_SEARCH_COST : 0;
+  const input = tokens * price.in;
+  const perMillion = n => formatUSD(n * 1e6);
+  const rates = `${perMillion(price.in)} in / ${perMillion(price.out)} out per million tokens`;
+  const webNote = web ? ` Web search adds about ${formatUSD(web)} (more for models with their own search).` : "";
+
+  if (price.in === 0 && price.out === 0) {
+    return web
+      ? { short: `≈ ${formatUSD(web)}`, detail: `Free model. Web search still costs about ${formatUSD(web)}.` }
+      : { short: "free", detail: "Free model." };
+  }
+  if (limit) {
+    const most = input + limit * price.out + web;
+    return {
+      short: `up to ${formatUSD(most)}`,
+      detail: `Input ≈ ${formatUSD(input)}. Reply at most ${limit.toLocaleString()} tokens ≈ ${formatUSD(limit * price.out)}.${webNote} Most it can cost: ${formatUSD(most)}. Rates: ${rates}.`
+    };
+  }
+  return {
+    short: `${formatUSD(input + web)} + reply`,
+    detail: `Input ≈ ${formatUSD(input)}. The reply costs ${perMillion(price.out)} per million tokens; set a Max reply length to cap it.${webNote} Rates: ${rates}.`
+  };
+}
+
 async function ensureFileCached(section, filename) {
   const key = `${section}/${filename}`;
 
@@ -1294,6 +1357,7 @@ function setActiveModel(modelId) {
   updateActiveModelDisplay();
   updateTokenMeter();
   updateReasoningNote();
+  updateMaxTokensNote();
 }
 
 function updateActiveModelDisplay() {
@@ -1359,7 +1423,8 @@ async function updateTokenMeter() {
     : String(n);
   const meter = document.getElementById("tokenMeter");
   meter.dataset.level = level;
-  meter.innerText = `AI request ≈ ${tokens.toLocaleString()} tokens`;
+  const cost = requestCost(tokens);
+  meter.innerText = `AI request ≈ ${tokens.toLocaleString()} tokens` + (cost ? ` · ${cost.short}` : "");
 
   // Hover: where the tokens come from, and how much of the model's limit they use
   const breakdown = Object.entries(parts)
@@ -1368,7 +1433,8 @@ async function updateTokenMeter() {
     .join(" · ") || "Nothing to send yet";
   const used = (tokens / max) * 100;
   meter.dataset.tip =
-    `${breakdown} — ${used < 0.1 ? "<0.1" : used.toFixed(used < 10 ? 1 : 0)}% of this model's ${short(max)} limit. Click to see the exact text.`;
+    `${breakdown} — ${used < 0.1 ? "<0.1" : used.toFixed(used < 10 ? 1 : 0)}% of this model's ${short(max)} limit.` +
+    (cost ? ` ${cost.detail}` : "") + " Click to see the exact text.";
 }
 
 function toggleProjectMenu(e) {
@@ -4437,9 +4503,10 @@ function openOverflowMenu(button, name) {
 
 let openrouterCatalog = null;   // { checked_at, models: { id: { expires, reasoning, ... } } }
 
-async function loadOpenRouterCatalog() {
+// auto: let the server fetch a fresh copy first when its copy is over a day old
+async function loadOpenRouterCatalog(auto = false) {
   try {
-    const data = await (await fetch('/openrouter_catalog')).json();
+    const data = await (await fetch(auto ? '/openrouter_catalog?auto=1' : '/openrouter_catalog')).json();
     openrouterCatalog = data.models ? data : null;
   } catch (e) {
     openrouterCatalog = null;
@@ -4527,7 +4594,8 @@ function generationSettings() {
     temperature,
     reasoning: reasoning === "default" ? null : reasoning,
     webSearch: Boolean(appState.webSearch),
-    webMaxResults: appState.webMaxResults ?? 5
+    webMaxResults: appState.webMaxResults ?? 5,
+    maxTokens: appState.maxTokens || null
   };
 }
 
@@ -4543,7 +4611,10 @@ function saveGenerationSettings() {
   const webMaxResults = Math.min(10, Math.max(1, Math.round(Number(maxField.value) || 5)));
   document.getElementById("aiGeneration").classList.toggle("web-off", !webSearch);
 
-  const values = { temperature, reasoningEffort, webSearch, webMaxResults };
+  const maxTokensValue = Math.round(Number(document.getElementById("maxTokensInput").value));
+  const maxTokens = maxTokensValue >= 1 ? maxTokensValue : null;
+
+  const values = { temperature, reasoningEffort, webSearch, webMaxResults, maxTokens };
   Object.assign(state.app_state, values);
   clearTimeout(generationSaveTimer);
   generationSaveTimer = setTimeout(() => fetch('/save_app_state', {
@@ -4551,6 +4622,7 @@ function saveGenerationSettings() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(values)
   }), 300);
+  updateTokenMeter();
 }
 
 function resetTemperature() {
@@ -4617,7 +4689,26 @@ function initGenerationPanel() {
   maxField.addEventListener("change", () => {
     maxField.value = state.app_state.webMaxResults;
   });
+
+  const maxTokensField = document.getElementById("maxTokensInput");
+  maxTokensField.value = state.app_state.maxTokens || "";
+  maxTokensField.addEventListener("input", saveGenerationSettings);
+  maxTokensField.addEventListener("change", () => {
+    maxTokensField.value = state.app_state.maxTokens || "";
+  });
+
   details.addEventListener("toggle", () => writePref("sjb_generation_open", details.open));
+}
+
+// The selected model's own reply limit, when the price list knows it
+function updateMaxTokensNote() {
+  const note = document.getElementById("maxTokensNote");
+  if (!note) return;
+  const model = getModelById(settings.modelName);
+  const maxOut = model?.source !== "ollama" && openrouterCatalog?.models[model?.id]?.max_out;
+  note.textContent =
+    "In tokens (1,000 is about 750 words). Reasoning counts too. Leave it empty for no limit." +
+    (maxOut ? ` This model allows up to ${maxOut.toLocaleString()}.` : "");
 }
 
 
@@ -4964,13 +5055,16 @@ async function openRequestPreview() {
   const extras = generationSettings();
   // Counted like the status bar, so both show the same number
   const tokens = estimateTokens([system, user].filter(Boolean).join("\n\n"));
+  const cost = requestCost(tokens);
   document.getElementById("requestSummary").textContent = [
     settings.modelName ? `Model: ${settings.modelName}` : "No model chosen",
     `about ${tokens.toLocaleString()} tokens`,
     extras.webSearch && settings.modelSource !== "ollama"
       ? `web search adds up to ${extras.webMaxResults} results`
-      : ""
+      : "",
+    replyLimit() ? `reply limit ${replyLimit().toLocaleString()} tokens` : ""
   ].filter(Boolean).join(" · ");
+  document.getElementById("requestCost").textContent = cost ? `Cost: ${cost.detail}` : "";
 
   requestPreviewText = (system ? `[System]\n${system}\n\n[User]\n` : "") + user;
   document.getElementById("requestModal").classList.remove("hidden");
@@ -5257,8 +5351,10 @@ async function saveSettings() {
   }
 
 
+  const aiWasOn = aiEnabled();
   state.app_state.aiEnabled = document.getElementById("aiEnabledToggle").checked;
   applyAiEnabled();
+  if (aiEnabled() && !aiWasOn) await loadOpenRouterCatalog(true);
   await fetch('/save_app_state', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -5533,9 +5629,12 @@ window.onload = async () => {
   applyAiEnabled();
   initGenerationPanel();
   initMarkersPanel();
-  loadOpenRouterCatalog().then(() => {
+  // Prices stay current: the app refreshes them once a day, only while AI is on
+  loadOpenRouterCatalog(aiEnabled()).then(() => {
     renderModelDropdown();
     updateReasoningNote();
+    updateMaxTokensNote();
+    updateTokenMeter();
   });
   applySectionOrder();
   applySectionFolds();
