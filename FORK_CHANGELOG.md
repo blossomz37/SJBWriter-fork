@@ -9,6 +9,35 @@ fork.
 
 ---
 
+## 2026-10-22: Dialogue percent in the status bar
+
+**Commit:** `adfa338`. **Files:** `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`.
+
+- **Why:** the balance of dialogue and narration is a common pacing check
+  for fiction writers.
+- **What the user sees:**
+  - A new status bar item next to the word count, for example
+    **"28 words · 43% dialogue · 1 min read"**.
+  - Hovering shows the raw numbers ("12 of 28 words are in quotes").
+  - It is hidden when no document is open.
+- **How `countDialogueWords(text)` works:**
+  - It walks the open document paragraph by paragraph, splitting on newlines.
+  - An opening `“` or `"` starts a quote, and a closing `”` or `"` ends it.
+    The words collected in between are counted with the same whitespace split
+    as the main word count.
+  - **Speech that runs on:** a quote still open at the end of a paragraph
+    counts to that paragraph's end. Fiction leaves the closing mark off when
+    speech continues into the next paragraph.
+  - **Single quotes** are not counted, because they cannot be told apart from
+    apostrophes ("don't", "Mara's").
+  - **Speed:** it runs on every word-count update, in one linear pass.
+- **Tested:** eight edge cases: straight and curly quotes, no dialogue, speech
+  that runs on, an unclosed quote at the end, apostrophes inside quotes, mixed
+  quote styles, and a lone opening mark.
+
+---
+
 ## 2026-10-22: Word counts without `(?)`, and a clearer token meter
 
 **Commit:** `0f77014`. **Files:** `app/app.py`, `app/static/script.js`,
