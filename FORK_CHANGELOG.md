@@ -9,6 +9,19 @@ fork.
 
 ---
 
+## 2026-10-22: System section above Prompts by default
+
+**Commit:** `76f7525`. **File:** `app/templates/index.html`.
+
+- **Why:** System files are standing rules that apply to every request.
+  Prompts are the per-request instruction. Rules first, then the instruction,
+  reads in the same order the context is built.
+- **How:** in the first sidebar group, the System `.section` block now comes
+  before the Prompts block. A reader's own drag order, saved in
+  `localStorage` as `sjb_section_order`, still overrides this default.
+
+---
+
 ## 2026-10-22: Sidebar: fold, sort, reorder sections, move files between sections
 
 **Commit:** `b953ad2`. **Files:** `app/app.py`, `app/static/script.js`,
