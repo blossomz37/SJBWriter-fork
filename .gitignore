@@ -27,3 +27,11 @@ Global/app_state.json
 .history/
 .trash/
 .tmp-*
+
+# Personal prompts and system rules stay local; only the shipped starters are tracked
+Global/prompts/*
+!Global/prompts/epbm-*.json
+!Global/prompts/plan.json
+Global/system/*
+!Global/system/always-on-instructions-from-cv-to-be-edited.json
+!Global/system/em-dashes.json
