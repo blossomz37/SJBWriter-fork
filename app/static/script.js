@@ -1516,8 +1516,13 @@ function toggleProjectMenu(e) {
     menu.remove();
   };
 
+  const duplicateProjectItem = document.createElement("div");
+  duplicateProjectItem.textContent = "Duplicate Project";
+  duplicateProjectItem.onclick = () => duplicateProject();
+
   menu.appendChild(create);
   menu.appendChild(rename);
+  menu.appendChild(duplicateProjectItem);
   menu.appendChild(del);
 
   document.body.appendChild(menu);
@@ -3304,8 +3309,13 @@ function toggleFolderMenu(
     menu.remove();
   };
 
+  const duplicateFolder = document.createElement('div');
+  duplicateFolder.textContent = "Duplicate Folder";
+  duplicateFolder.onclick = () => duplicateFolderItem(section, folder.id);
+
   menu.appendChild(addFile);
   menu.appendChild(rename);
+  menu.appendChild(duplicateFolder);
   menu.appendChild(del);
 
   document.body.appendChild(menu);
@@ -3730,7 +3740,12 @@ function toggleMenu(row, section, filename) {
   history.textContent = "Version history…";
   history.onclick = () => openHistory(section, filename);
 
+  const duplicate = document.createElement('div');
+  duplicate.textContent = "Duplicate";
+  duplicate.onclick = () => duplicateDocument(section, filename);
+
   menu.appendChild(rename);
+  menu.appendChild(duplicate);
   menu.appendChild(history);
   menu.appendChild(del);
 
@@ -4734,6 +4749,46 @@ function updateAiSummary() {
   document.getElementById("aiSummaryChip")
     .classList.toggle("is-active", rules > 0 || Boolean(selected.prompt));
   fitToolbars();
+}
+
+
+// =====================
+// DUPLICATE (document, folder, project)
+// =====================
+
+async function postJSON(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return { ok: res.ok, data: await res.json() };
+}
+
+async function duplicateDocument(section, filename) {
+  if (currentFile.section === section && currentFile.filename === filename && isDirty) {
+    await saveCurrentFile();
+  }
+  const { ok, data } = await postJSON('/duplicate_item', { section, filename });
+  if (!ok) return showToast(data.error || "Could not duplicate");
+  await loadAll();
+  showToast(`Duplicated as "${data.title}".`, "info");
+}
+
+async function duplicateFolderItem(section, folderId) {
+  if (isDirty) await saveCurrentFile();
+  const { ok, data } = await postJSON('/duplicate_folder', { section, folder_id: folderId });
+  if (!ok) return showToast(data.error || "Could not duplicate the folder");
+  await loadAll();
+  showToast(`Duplicated as "${data.title}".`, "info");
+}
+
+async function duplicateProject() {
+  if (isDirty) await saveCurrentFile();
+  const { ok, data } = await postJSON('/duplicate_project', { project: currentProject });
+  if (!ok) return showToast(data.error || "Could not duplicate the project");
+  await loadProjects();
+  showToast(`Duplicated as "${data.title}". Find it in the project menu.`, "info");
 }
 
 
