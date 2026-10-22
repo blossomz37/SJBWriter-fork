@@ -293,14 +293,24 @@
       </div>
 
       <div class="settings-section">
-        <label>Theme</label>
-       <select id="themeSelect">
+        <label for="themeModeSelect">Mode</label>
+        <select id="themeModeSelect" onchange="previewAppearance()">
           <option value="light">Light</option>
           <option value="dark">Dark</option>
-          <option value="crimson">Crimson</option>
-          <option value="dark-stellar">Dark Stellar</option>
-          <option value="light-stellar">Light Stellar</option>
+          <option value="system">Match system</option>
         </select>
+      </div>
+
+      <div class="settings-section">
+        <label>Accent color</label>
+        <div id="accentSwatches" class="accent-swatches" role="radiogroup" aria-label="Accent color">
+          <button type="button" class="accent-swatch" role="radio" data-accent="blue" style="--swatch: #2563eb" data-tip="Blue" aria-label="Blue" onclick="pickAccent('blue')"></button>
+          <button type="button" class="accent-swatch" role="radio" data-accent="indigo" style="--swatch: #4f46e5" data-tip="Indigo" aria-label="Indigo" onclick="pickAccent('indigo')"></button>
+          <button type="button" class="accent-swatch" role="radio" data-accent="teal" style="--swatch: #0d9488" data-tip="Teal" aria-label="Teal" onclick="pickAccent('teal')"></button>
+          <button type="button" class="accent-swatch" role="radio" data-accent="crimson" style="--swatch: #dc2626" data-tip="Crimson" aria-label="Crimson" onclick="pickAccent('crimson')"></button>
+          <button type="button" class="accent-swatch" role="radio" data-accent="amber" style="--swatch: #d97706" data-tip="Amber" aria-label="Amber" onclick="pickAccent('amber')"></button>
+          <button type="button" class="accent-swatch" role="radio" data-accent="violet" style="--swatch: #7c3aed" data-tip="Violet" aria-label="Violet" onclick="pickAccent('violet')"></button>
+        </div>
       </div>
 
       <div class="settings-section">

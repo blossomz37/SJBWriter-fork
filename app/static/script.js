@@ -1,19 +1,72 @@
 let fileCache = {}; // { "section/filename": content }
 
-function setTheme(mode) {
-  document.body.classList.remove("dark", "crimson", "dark-stellar", "light-stellar");
-  if (mode !== "light") {
-    document.body.classList.add(mode);
-  }
+// =====================
+// APPEARANCE: MODE (light / dark / system) × ACCENT
+// =====================
+
+const ACCENTS = ["blue", "indigo", "teal", "crimson", "amber", "violet"];
+
+// Old single-theme names map onto mode + accent
+const LEGACY_THEMES = {
+  "light": ["light", "blue"],
+  "dark": ["dark", "blue"],
+  "crimson": ["dark", "crimson"],
+  "dark-stellar": ["dark", "blue"],
+  "light-stellar": ["light", "blue"]
+};
+
+const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
+
+function applyAppearance(mode, accent) {
+  const dark = mode === "dark" || (mode === "system" && systemDark.matches);
+  document.body.classList.toggle("mode-dark", dark);
+  ACCENTS.forEach(a => {
+    document.body.classList.toggle(`accent-${a}`, a === accent);
+  });
+  document.body.dataset.mode = mode;
+  document.body.dataset.accent = accent;
 }
 
-function previewTheme(mode) {
-  setTheme(mode);
+function savedAppearance() {
+  const appState = state.app_state || {};
+  const legacy = LEGACY_THEMES[appState.theme] || ["light", "blue"];
+  return {
+    mode: appState.themeMode || legacy[0],
+    accent: ACCENTS.includes(appState.accent) ? appState.accent : legacy[1]
+  };
+}
+
+// Still accepts the old theme names
+function setTheme(theme) {
+  const [mode, accent] = LEGACY_THEMES[theme] || [theme, "blue"];
+  applyAppearance(mode, accent);
+}
+
+// In "Match system" mode, follow the OS as it switches
+systemDark.addEventListener("change", () => {
+  if (document.body.dataset.mode === "system") {
+    applyAppearance("system", document.body.dataset.accent);
+  }
+});
+
+function pickAccent(accent) {
+  document.querySelectorAll(".accent-swatch").forEach(swatch => {
+    swatch.setAttribute("aria-checked", String(swatch.dataset.accent === accent));
+  });
+  previewAppearance();
+}
+
+// Settings > Visual: show choices live; Back/Cancel restores the saved look
+function previewAppearance() {
+  const mode = document.getElementById("themeModeSelect").value;
+  const accent =
+    document.querySelector('.accent-swatch[aria-checked="true"]')?.dataset.accent || "blue";
+  applyAppearance(mode, accent);
 }
 
 function loadTheme() {
-  const saved = state.app_state.theme || "light";
-  setTheme(saved);
+  const { mode, accent } = savedAppearance();
+  applyAppearance(mode, accent);
   const savedSize =
     state.app_state.sidebarFontSize || "13px";
   applySidebarFontSize(savedSize);
@@ -1065,6 +1118,8 @@ function openVisualPanel() {
 }
 
 function closeVisualPanel() {
+  const { mode, accent } = savedAppearance();
+  applyAppearance(mode, accent);
   document.getElementById("settingsVisualView").classList.add("hidden");
   document.getElementById("settingsMainLayout").classList.remove("hidden");
 }
@@ -4007,14 +4062,17 @@ async function saveSettings() {
 }
 
 async function saveVisualSettings() {
-  const theme = document.getElementById("themeSelect").value;
+  const themeMode = document.getElementById("themeModeSelect").value;
+  const accent =
+    document.querySelector('.accent-swatch[aria-checked="true"]')?.dataset.accent || "blue";
   const sidebarFontSize =
     document.getElementById("sidebarFontSize").value;
 
-  setTheme(theme);
+  applyAppearance(themeMode, accent);
   applySidebarFontSize(sidebarFontSize);
 
-  state.app_state.theme = theme;
+  state.app_state.themeMode = themeMode;
+  state.app_state.accent = accent;
   state.app_state.sidebarFontSize = sidebarFontSize;
   state.app_state.showWritingCounts =
    document.getElementById("showWritingCounts").checked;
@@ -4043,7 +4101,8 @@ async function saveVisualSettings() {
         state.app_state.showSystemCounts,
       showFolderTotals:
         state.app_state.showFolderTotals,
-      theme: state.app_state.theme,
+      themeMode: state.app_state.themeMode,
+      accent: state.app_state.accent,
       sidebarFontSize: state.app_state.sidebarFontSize
     })
   });
@@ -4073,8 +4132,6 @@ function loadSettingsIntoUI() {
     state.app_state.showSystemCounts;
   document.getElementById("showFolderTotals").checked =
     state.app_state.showFolderTotals;
-  document.getElementById("themeSelect").value =
-    state.app_state.theme || "light";
   document.getElementById("sidebarFontSize").value =
     state.app_state.sidebarFontSize || "13px";
   document.getElementById("showOutputMarkers").checked =
@@ -4086,8 +4143,9 @@ function loadSettingsIntoUI() {
 }
 
 function loadVisualSettingsIntoUI() {
-  document.getElementById("themeSelect").value =
-    state.app_state.theme || "light";
+  const { mode, accent } = savedAppearance();
+  document.getElementById("themeModeSelect").value = mode;
+  pickAccent(accent);
   document.getElementById("sidebarFontSize").value =
     state.app_state.sidebarFontSize || "13px";
 }
