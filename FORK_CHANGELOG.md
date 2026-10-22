@@ -9,6 +9,75 @@ fork.
 
 ---
 
+## 2026-10-22: Housekeeping: tests, requirements, dead code, narrow windows
+
+Five commits.
+
+### 1. A server test suite (`de7aeac`)
+
+- **What:** `tests/` holds 38 tests that use only Python's built-in
+  `unittest`. Run them with `python3 -m unittest discover tests`. The README
+  says how.
+- **How they stay safe:** `tests/helpers.py` copies `app/` into a temporary
+  folder, together with a small made-up library: one prompt, one system
+  file, and a project with a folder. So real books are never touched. Every
+  `requests.get` and `requests.post` fails unless a test fakes it, so no test
+  can reach OpenRouter or Ollama or spend credits.
+- **What they cover:**
+  - Documents: Markdown files, the title header, extra header lines,
+    rename, duplicate, and move.
+  - Outside edits and the sidebar following the folder.
+  - The JSON-to-Markdown conversion, including old pages that still send
+    `.json` names.
+  - Version history, including JSON-era versions.
+  - Trash: restore into the folder, restore to the top level, name clashes,
+    projects, and empty.
+  - The labeled AI request: Generate sends exactly what the preview shows,
+    for both OpenRouter and Ollama.
+  - The reply limit and the daily price-list refresh, including offline.
+  - Export: Word structure and formatting, and the manuscript order,
+    headings, and new pages.
+  - The Books folder: the picker, copy, refusals, reset, and a missing
+    folder.
+  - Path tricks, and a fresh install.
+- **Proof that they catch bugs:** two bugs were put back on purpose, one at
+  a time: the fresh-install crash, and a skipped outside-edit check. In each
+  case, the matching test failed.
+
+### 2. `requirements.txt` (`a04950a`)
+
+`Flask>=3.0` and `requests>=2.31`. The README install step now uses
+`python3 -m pip install -r requirements.txt`.
+
+### 3. `.env-example` removed (`7146035`)
+
+The app never read it. The API key is set in Settings and kept in
+`Global/config.json`. `.env` stays git-ignored.
+
+### 4. Dead code removed (`048234e`)
+
+- **`app.py`:** the `/test_create`, `/test_load`, and `/test_save` routes sat
+  inside a string block, so they never ran.
+- **`script.js`:** `saveSectionOrder`, `createProject`, `moveModel`, and
+  `addModelRow` had no callers. In total, 139 lines were removed.
+
+### 5. No sideways scroll in narrow windows (`a2876b0`)
+
+- **At 700 px and less:**
+  - The sidebar floats over the editor like a drawer, with a soft shadow,
+    instead of squeezing the editor to about 215 px. The sidebar button
+    still opens and closes it.
+  - The status bar drops reading time and the dialogue percent.
+  - The token meter uses a short form ("≈ 1k tokens · up to $0.01"). The
+    tooltip keeps the full details.
+- **At every width:** the status bar's file name shrinks first, and the right
+  side can no longer push the page wider. Before this, a 701 px window
+  scrolled sideways by 10 px.
+- **Measured:** no sideways scroll at 390, 700, 701, 760, 860, 1024, and
+  1440 px.
+
+---
+
 ## 2026-10-22: Stray `\n` text removed from five EPBM prompts
 
 One commit (`f752d9a`). **Files:** `Global/prompts/epbm-2-characters`,

@@ -67,7 +67,7 @@ Ollama is optional. An OpenRouter API key is also optional and is needed only if
 4. Install the required Python packages:
 
    ```bash
-   python3 -m pip install flask requests
+   python3 -m pip install -r requirements.txt
    ```
 
 5. Start the application:
@@ -82,6 +82,16 @@ Ollama is optional. An OpenRouter API key is also optional and is needed only if
 Keep the terminal running while using the application. To stop the server, return to the terminal and press `Ctrl+C`.
 
 These instructions describe the current development version. Installation and dependency management may change as SJBWriter evolves.
+
+### Running the Tests
+
+The server tests use only Python's built-in `unittest`. From the project folder:
+
+```bash
+python3 -m unittest discover tests
+```
+
+Each test runs the app on a small, made-up library in a temporary folder, so your own books are never touched. Calls to OpenRouter and Ollama are faked, so the tests never spend credits.
 
 ### Configuring AI Models
 

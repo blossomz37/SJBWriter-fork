@@ -1983,34 +1983,6 @@ def api_switch_project():
     return jsonify({"status": "switched"})
 
 
-"""
-# -----------test route-------------- - deprecated?
-@app.route('/test_create')
-def test_create():
-    with app.test_request_context(json={
-        "section": "writing",
-        "title": "Chapter One"
-    }):
-        return create_item()
-
-@app.route('/test_load')
-def test_load():
-    with app.test_request_context(json={
-        "section": "writing",
-        "filename": "chapter-one.md"
-    }):
-        return load_file()
-
-@app.route('/test_save')
-def test_save():
-    with app.test_request_context(json={
-        "section": "writing",
-        "filename": "chapter-one.md",
-        "title": "Chapter One",
-        "content": "This is a test save."
-    }):
-        return save_file()
-"""
 
 
 
