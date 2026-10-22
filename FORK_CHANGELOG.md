@@ -9,6 +9,40 @@ fork.
 
 ---
 
+## 2026-10-22: Editor minimum width; AI setup tucks away when space runs out
+
+**Commit:** `e263b3b`. **File:** `app/static/script.js`.
+
+- **Why:** on smaller windows, the sidebar plus the AI setup panel could
+  squeeze the writing area until it was hard to use.
+- **How:**
+  - **Minimum width:** `EDITOR_MIN_WIDTH` went from 360 px to **440 px**,
+    about 50 characters a line. Both panel drags and the new auto-collapse
+    use it.
+  - **Auto-collapse:** `keepEditorRoom()` runs from the writing area's
+    `ResizeObserver`, so it reacts to window resizes, sidebar drags, and
+    sidebar toggles.
+    - If the AI panel is open and the editor falls below the minimum, the
+      panel hides itself. A short notice explains it, once per session.
+    - When the editor has room again (its width minus the panel's last width
+      is at least the minimum), the panel returns by itself.
+    - Both use `setAiPanelOpen(open, { auto: true })`, which does not
+      change the saved open/closed preference.
+  - **Opening without room:** `toggleAiPanel()` opens the panel, measures,
+    and reverts if the editor would be too narrow. It then shows a notice
+    suggesting a wider window or hiding the sidebar (⌘\\).
+  - **Closing by hand** clears the "auto-hidden" state, so a panel the writer
+    closed never reopens by itself.
+- **Tested by resizing the window:**
+  - Open at 1440, shrink to 1000: it stays open, with the editor at 460.
+  - Shrink to 900: it hides, and the notice appears.
+  - Widen to 1300: it returns.
+  - At 900, clicking the toggle shows the notice and the panel stays closed.
+  - Hiding the sidebar at 900: it returns by itself.
+  - Closing it by hand, then widening: it stays closed.
+
+---
+
 ## 2026-10-22: Output markers moved into the AI setup panel
 
 **Commit:** `f6a5e38`. **Files:** `app/templates/index.html`,
