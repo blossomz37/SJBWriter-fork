@@ -9,6 +9,55 @@ fork.
 
 ---
 
+## 2026-10-22: AI setup panel on the right, with a summary chip
+
+**Commit:** `9a73855`. **Files:** `app/templates/index.html`,
+`app/static/script.js`, `app/static/style.css`, and
+`app/templates/_icons.html` (3 more Lucide icons: `x`, `panel-right`,
+`sliders-horizontal`).
+
+- **Why:** the left sidebar mixed two kinds of things. Project and Writing are
+  what a writer moves through all the time. System and Prompts are AI setup:
+  chosen once, then mostly left alone. Splitting them follows the familiar
+  "files on the left, inspector on the right" pattern, and it gives the
+  project files the full sidebar height.
+- **How:**
+  - **The panel:** System and Prompts moved into a new
+    `<aside id="aiPanel" class="ai-panel">`, after the writing area. It is
+    300 px wide, with a header ("AI setup") and a close button.
+    - It is **closed by default**. A `body.ai-panel-open` class shows it, and
+      `localStorage` (`sjb_ai_panel_open`) remembers the state.
+    - Zen mode hides it.
+  - **The summary chip:** the AI dock, left of the model picker, has a chip
+    that always shows what the AI will receive, for example
+    **"1 rule · Prompt: EPBM 3 - Outline"** or "No rules · No prompt". It
+    counts only System files that are checked and still exist.
+    - The chip takes the accent color while anything is active, and it is
+      tinted while the panel is open.
+    - Clicking the chip opens or closes the panel.
+    - It updates whenever the selections are saved or the lists re-render.
+    - This is the safeguard for a hidden panel: you can always see that a rule
+      is on.
+  - **Shortcut:** **⌘⌥\\** (Ctrl+Alt+\\) toggles the panel. It checks
+    `e.code === "Backslash"`, because with Option held, `e.key` returns a
+    different character on a Mac.
+  - **Left sidebar:** it now holds the app header and the project group
+    (Background, Writing).
+  - **Unchanged features:** folding, sorting, section reorder, and dragging
+    files between sections work across both sides. For example, a Background
+    note can be dragged onto the System label in the panel.
+  - **Toasts** move left of the panel while it is open.
+
+**Check:**
+
+1. The panel should be closed on first load, with the chip reading
+   "No rules · No prompt".
+2. Click the chip, check a System rule, and pick a prompt. The chip should
+   update.
+3. Press ⌘⌥\\ to close the panel. The chip should still show what is active.
+
+---
+
 ## 2026-10-22: System section above Prompts by default
 
 **Commit:** `76f7525`. **File:** `app/templates/index.html`.

@@ -2417,6 +2417,7 @@ async function renderLists() {
   await renderSection('systemList', state.global.system || [], 'system');
   await renderSection('backgroundList', state.project.background || [], 'background');
   await renderSection('writingList', state.project.writing || [], 'writing');
+  updateAiSummary();
 }
 
 
@@ -4096,6 +4097,41 @@ async function moveFileToSection(fromSection, toSection, filename, opts = {}) {
 
 
 // =====================
+// AI SETUP PANEL (System + Prompts, on the right)
+// =====================
+
+function setAiPanelOpen(open) {
+  document.body.classList.toggle("ai-panel-open", open);
+  document.getElementById("aiSummaryChip").setAttribute("aria-expanded", String(open));
+  writePref("sjb_ai_panel_open", open);
+}
+
+function toggleAiPanel() {
+  setAiPanelOpen(!document.body.classList.contains("ai-panel-open"));
+}
+
+// "2 rules · Prompt: EPBM 3": what the AI will get, even with the panel closed
+function updateAiSummary() {
+  const text = document.getElementById("aiSummaryText");
+  if (!text || !state.global) return;
+
+  const rules = collectFilenames(state.global.system || [])
+    .filter(f => selected.system.has(f)).length;
+
+  let prompt = "No prompt";
+  if (selected.prompt) {
+    const item = findFileItemInTree(state.global.prompts || [], selected.prompt);
+    prompt = `Prompt: ${item?.title || selected.prompt.replace(/\.json$/, "")}`;
+  }
+
+  const rulesText = rules === 0 ? "No rules" : rules === 1 ? "1 rule" : `${rules} rules`;
+  text.textContent = `${rulesText} · ${prompt}`;
+  document.getElementById("aiSummaryChip")
+    .classList.toggle("is-active", rules > 0 || Boolean(selected.prompt));
+}
+
+
+// =====================
 // VERSION HISTORY
 // =====================
 
@@ -4226,12 +4262,18 @@ function closeHistory() {
 // KEYBOARD SHORTCUTS (⌘ on Mac, Ctrl elsewhere)
 // =====================
 // ⌘E preview (same key as Obsidian) · ⌘S save · ⌘Enter generate
-// ⌘\ sidebar · ⌘⇧F zen · Esc stops generation, then leaves zen
+// ⌘\ sidebar · ⌘⌥\ AI setup · ⌘⇧F zen · Esc stops generation, then leaves zen
 
 document.addEventListener("keydown", (e) => {
   if (!document.getElementById("settingsModal").classList.contains("hidden")) return;
   if (!document.getElementById("historyModal").classList.contains("hidden")) {
     if (e.key === "Escape") closeHistory();
+    return;
+  }
+
+  if ((e.metaKey || e.ctrlKey) && e.altKey && e.code === "Backslash") {
+    e.preventDefault();
+    toggleAiPanel();
     return;
   }
 
@@ -4484,6 +4526,8 @@ function saveSelections() {
     `sjb_selected_${currentProject}`,
     JSON.stringify(projectData)
   );
+
+  updateAiSummary();
 }
 
 
@@ -4608,6 +4652,7 @@ window.onload = async () => {
     if (localStorage.getItem("sjb_sidebar_collapsed") === "1") setSidebarCollapsed(true);
   } catch (e) {}
 
+  setAiPanelOpen(readPref("sjb_ai_panel_open", false));
   applySectionOrder();
   applySectionFolds();
   updateSortButtons();
