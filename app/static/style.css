@@ -2498,3 +2498,21 @@ body.ai-off #tokenMeter {
   font-size: 14px;
   opacity: 1;
 }
+
+
+/* Web search fields in the Generation block */
+.generation-web {
+  margin-top: 10px;
+}
+
+.web-max input {
+  width: 64px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: right;
+}
+
+.ai-generation.web-off .web-max {
+  opacity: 0.5;
+}

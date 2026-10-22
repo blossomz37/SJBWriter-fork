@@ -490,6 +490,17 @@ def generation_options(settings):
     effort = settings.get("reasoning")
     return temperature, (effort if effort in REASONING_EFFORTS else None)
 
+
+def web_search_plugin(settings):
+    """OpenRouter's web plugin when search is on: 1-10 results (10 is the per-search price cap)."""
+    if not settings.get("webSearch"):
+        return None
+    try:
+        max_results = int(settings.get("webMaxResults") or 5)
+    except (TypeError, ValueError):
+        max_results = 5
+    return {"id": "web", "max_results": min(10, max(1, max_results))}
+
 def call_openrouter(prompt, settings):
     def get_api_key():
         config_path = os.path.join(GLOBAL_DIR, "config.json")
@@ -536,6 +547,11 @@ def call_openrouter(prompt, settings):
         data["temperature"] = temperature
     if effort:
         data["reasoning"] = {"effort": effort}
+
+    # Web search (OpenRouter plugin; billed per search, even on free models)
+    web = web_search_plugin(settings)
+    if web:
+        data["plugins"] = [web]
 
 
     try:
@@ -761,7 +777,9 @@ def api_generate():
     model_settings = {
         "modelName": model_name,
         "temperature": client_settings.get("temperature"),
-        "reasoning": client_settings.get("reasoning")
+        "reasoning": client_settings.get("reasoning"),
+        "webSearch": client_settings.get("webSearch"),
+        "webMaxResults": client_settings.get("webMaxResults")
     }
 
     if model_source == "openrouter":

@@ -4487,7 +4487,9 @@ function generationSettings() {
   const reasoning = appState.reasoningEffort || "default";
   return {
     temperature,
-    reasoning: reasoning === "default" ? null : reasoning
+    reasoning: reasoning === "default" ? null : reasoning,
+    webSearch: Boolean(appState.webSearch),
+    webMaxResults: appState.webMaxResults ?? 5
   };
 }
 
@@ -4498,12 +4500,18 @@ function showTemperature(value) {
 function saveGenerationSettings() {
   const temperature = Number(document.getElementById("temperatureInput").value);
   const reasoningEffort = document.getElementById("reasoningSelect").value;
-  Object.assign(state.app_state, { temperature, reasoningEffort });
+  const webSearch = document.getElementById("webSearchToggle").checked;
+  const maxField = document.getElementById("webMaxResults");
+  const webMaxResults = Math.min(10, Math.max(1, Math.round(Number(maxField.value) || 5)));
+  document.getElementById("aiGeneration").classList.toggle("web-off", !webSearch);
+
+  const values = { temperature, reasoningEffort, webSearch, webMaxResults };
+  Object.assign(state.app_state, values);
   clearTimeout(generationSaveTimer);
   generationSaveTimer = setTimeout(() => fetch('/save_app_state', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ temperature, reasoningEffort })
+    body: JSON.stringify(values)
   }), 300);
 }
 
@@ -4559,6 +4567,18 @@ function initGenerationPanel() {
     saveGenerationSettings();
   });
   reasoning.addEventListener("change", saveGenerationSettings);
+
+  const web = document.getElementById("webSearchToggle");
+  const maxField = document.getElementById("webMaxResults");
+  web.checked = Boolean(state.app_state.webSearch);
+  maxField.value = state.app_state.webMaxResults ?? 5;
+  details.classList.toggle("web-off", !web.checked);
+  web.addEventListener("change", saveGenerationSettings);
+  maxField.addEventListener("input", saveGenerationSettings);
+  // Show the corrected number once the writer leaves the field
+  maxField.addEventListener("change", () => {
+    maxField.value = state.app_state.webMaxResults;
+  });
   details.addEventListener("toggle", () => writePref("sjb_generation_open", details.open));
 }
 

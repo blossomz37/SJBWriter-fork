@@ -242,6 +242,16 @@
         <option value="high">High</option>
       </select>
       <p class="ai-markers-note" id="reasoningNote">Models that cannot reason ignore this.</p>
+
+      <label class="ai-markers-check generation-web">
+        <input type="checkbox" id="webSearchToggle" />
+        Search the web
+      </label>
+      <div class="generation-row web-max">
+        <label for="webMaxResults">Max websites</label>
+        <input type="number" id="webMaxResults" min="1" max="10" step="1" value="5" />
+      </div>
+      <p class="ai-markers-note">OpenRouter models only. Each search costs about $0.007, even on free models.</p>
     </div>
   </details>
 
