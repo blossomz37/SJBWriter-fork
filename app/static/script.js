@@ -4130,6 +4130,7 @@ async function moveFileToSection(fromSection, toSection, filename, opts = {}) {
 function setAiPanelOpen(open) {
   document.body.classList.toggle("ai-panel-open", open);
   document.getElementById("aiSummaryChip").setAttribute("aria-expanded", String(open));
+  document.getElementById("aiPanelToggle").setAttribute("aria-pressed", String(open));
   writePref("sjb_ai_panel_open", open);
 }
 

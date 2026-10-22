@@ -24,10 +24,12 @@
 <!-- ===================== TOP BAR ===================== -->
 <header class="top-bar">
   <div class="top-bar-brand">
+    <button type="button" id="sidebarToggle" class="icon-btn ghost-btn tip-start" onclick="toggleSidebar()" data-tip="Sidebar (⌘\)" aria-label="Toggle sidebar" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-panel-left"/></svg></button>
     <img src="{{ url_for('static', filename='apple-touch-icon.png') }}" alt="SJB Writer" class="top-bar-logo" />
     <span class="top-bar-version">v{{ app_version }}</span>
   </div>
   <div class="top-bar-actions">
+    <button type="button" id="aiPanelToggle" class="icon-btn ghost-btn tip-end" onclick="toggleAiPanel()" data-tip="AI setup (⌘⌥\)" aria-label="Toggle AI setup" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-panel-right"/></svg></button>
     <button type="button" id="modeToggle" class="icon-btn ghost-btn tip-end" onclick="toggleLightDark()" data-tip="Dark mode" aria-label="Switch to dark mode"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
     <button type="button" class="icon-btn ghost-btn gear-btn tip-end" onclick="openSettings()" data-tip="Settings" aria-label="Settings"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg></button>
   </div>
@@ -89,7 +91,6 @@
 <div class="right">
   <!-- ---------- TITLE INPUT ---------- -->
   <div class="title-row">
-    <button type="button" id="sidebarToggle" class="icon-btn ghost-btn tip-start" onclick="toggleSidebar()" data-tip="Sidebar (⌘\)" aria-label="Toggle sidebar" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-panel-left"/></svg></button>
     <input id="titleInput" placeholder="Title..." />
   </div>
   <!-- ---------- FORMATTING BAR ---------- -->
