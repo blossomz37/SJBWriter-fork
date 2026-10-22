@@ -2341,3 +2341,62 @@ body.is-resizing .ai-panel {
 .ai-markers.is-off textarea {
   opacity: 0.5;
 }
+
+
+/* ===================== GENERATION SETTINGS (AI setup panel) ===================== */
+.generation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.generation-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--panel-text);
+  font-variant-numeric: tabular-nums;
+}
+
+#temperatureInput {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  accent-color: var(--accent);
+}
+
+.generation-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ai-generation .ai-markers-body > label {
+  margin-top: 6px;
+}
+
+/* Small text-only button */
+.link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+/* The second block sits right under the first; no double divider */
+.ai-generation + .ai-markers {
+  margin-top: 0;
+}

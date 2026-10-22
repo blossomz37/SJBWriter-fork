@@ -477,6 +477,19 @@ def save_model_list(data):
 
 
 # ===================== AI CLIENT =====================
+REASONING_EFFORTS = {"none", "minimal", "low", "medium", "high", "xhigh", "max"}
+
+
+def generation_options(settings):
+    """Temperature (0-2) and reasoning effort from the client; None means "model default"."""
+    temperature = settings.get("temperature")
+    try:
+        temperature = None if temperature is None else min(2.0, max(0.0, float(temperature)))
+    except (TypeError, ValueError):
+        temperature = None
+    effort = settings.get("reasoning")
+    return temperature, (effort if effort in REASONING_EFFORTS else None)
+
 def call_openrouter(prompt, settings):
     def get_api_key():
         config_path = os.path.join(GLOBAL_DIR, "config.json")
@@ -516,6 +529,13 @@ def call_openrouter(prompt, settings):
         ],
         "stream": True
     }
+
+    # OpenRouter maps one reasoning setting onto each model family's own controls
+    temperature, effort = generation_options(settings)
+    if temperature is not None:
+        data["temperature"] = temperature
+    if effort:
+        data["reasoning"] = {"effort": effort}
 
 
     try:
@@ -594,6 +614,13 @@ def call_ollama(prompt, settings):
         "prompt": prompt,
         "stream": True
     }
+
+    # Ollama: temperature goes in options; "think" turns reasoning on or off
+    temperature, effort = generation_options(settings)
+    if temperature is not None:
+        data["options"] = {"temperature": temperature}
+    if effort:
+        data["think"] = effort != "none"
 
     try:
 
@@ -731,19 +758,19 @@ def api_generate():
     model_source = client_settings.get("modelSource", "openrouter")
     model_name = client_settings.get("modelName")
 
+    model_settings = {
+        "modelName": model_name,
+        "temperature": client_settings.get("temperature"),
+        "reasoning": client_settings.get("reasoning")
+    }
+
     if model_source == "openrouter":
 
-        result = call_openrouter(
-            prompt,
-            {"modelName": model_name}
-        )
+        result = call_openrouter(prompt, model_settings)
 
     elif model_source == "ollama":
 
-        result = call_ollama(
-            prompt,
-            {"modelName": model_name}
-        )
+        result = call_ollama(prompt, model_settings)
 
     else:
 

@@ -1824,7 +1824,7 @@ updateUndoButton();
       background: backgroundFiles,
       writing: [...writingFiles, editor.value],
       prompt: promptBox.value,
-      settings: settings
+      settings: { ...settings, ...generationSettings() }
     };
 
     const res = await fetch('/generate', {
@@ -4385,6 +4385,65 @@ function openOverflowMenu(button, name) {
 
 
 // =====================
+// GENERATION SETTINGS (temperature, reasoning; in the AI setup panel)
+// =====================
+
+const DEFAULT_TEMPERATURE = 0.7;
+let generationSaveTimer = null;
+
+// Sent with every generation; "default" reasoning sends nothing, so each model uses its own
+function generationSettings() {
+  const appState = state.app_state || {};
+  const temperature = appState.temperature ?? DEFAULT_TEMPERATURE;
+  const reasoning = appState.reasoningEffort || "default";
+  return {
+    temperature,
+    reasoning: reasoning === "default" ? null : reasoning
+  };
+}
+
+function showTemperature(value) {
+  document.getElementById("temperatureValue").textContent = Number(value).toFixed(1);
+}
+
+function saveGenerationSettings() {
+  const temperature = Number(document.getElementById("temperatureInput").value);
+  const reasoningEffort = document.getElementById("reasoningSelect").value;
+  Object.assign(state.app_state, { temperature, reasoningEffort });
+  clearTimeout(generationSaveTimer);
+  generationSaveTimer = setTimeout(() => fetch('/save_app_state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ temperature, reasoningEffort })
+  }), 300);
+}
+
+function resetTemperature() {
+  document.getElementById("temperatureInput").value = DEFAULT_TEMPERATURE;
+  showTemperature(DEFAULT_TEMPERATURE);
+  saveGenerationSettings();
+}
+
+function initGenerationPanel() {
+  const slider = document.getElementById("temperatureInput");
+  const reasoning = document.getElementById("reasoningSelect");
+  const details = document.getElementById("aiGeneration");
+
+  slider.value = state.app_state.temperature ?? DEFAULT_TEMPERATURE;
+  reasoning.value = state.app_state.reasoningEffort || "default";
+  showTemperature(slider.value);
+  details.open = readPref("sjb_generation_open", true);
+
+  slider.addEventListener("input", () => {
+    showTemperature(slider.value);
+    saveGenerationSettings();
+  });
+  reasoning.addEventListener("change", saveGenerationSettings);
+  details.addEventListener("toggle", () => writePref("sjb_generation_open", details.open));
+}
+
+
+// =====================
 // AI OUTPUT MARKERS (in the AI setup panel; saved as you type)
 // =====================
 
@@ -5030,6 +5089,7 @@ window.onload = async () => {
 
   setAiPanelOpen(readPref("sjb_ai_panel_open", false));
   initPanelResize();
+  initGenerationPanel();
   initMarkersPanel();
   applySectionOrder();
   applySectionFolds();
