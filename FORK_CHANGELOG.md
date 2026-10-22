@@ -9,6 +9,61 @@ fork.
 
 ---
 
+## 2026-10-22: Server code split into small files
+
+One commit (`4d29a4f`). **Files:** `app/app.py` and the new `app/sjb/`
+folder (`tests/helpers.py` follows the change).
+
+**Why:** `app.py` had grown to 3,342 lines, holding 48 routes and 131
+functions. Every change meant searching one huge file. Now each file has one
+job, and you can describe it in one sentence.
+
+**How the split was decided:**
+- Code that changes together stays together. For example, everything about
+  export is in one file.
+- Each file is named after what it does for the writer.
+- Dependencies point one way. The low-level files (where things live, safe
+  file writes) never depend on the feature files.
+
+**The new map** (`app/sjb/`, lowest layer first):
+
+| File | What it does |
+|---|---|
+| `paths.py` | Where the app settings and the writer's books live. The Books folder can change while the app runs. |
+| `storage.py` | Safe file writes, Markdown documents, outside-change tracking, name checks. |
+| `library.py` | Projects, sections, the sidebar lists (trees), free names for copies. |
+| `migrate.py` | The one-time JSON-to-Markdown switch, and old `.json` names from open pages. |
+| `history.py` | Version history and the Trash, with their routes. |
+| `documents.py` | Routes for documents and folders. |
+| `projects.py` | Routes for projects. |
+| `ai.py` | The labeled AI request, OpenRouter, Ollama, reply limit. |
+| `models.py` | The model list and OpenRouter's price list. |
+| `export.py` | Markdown and Word export. |
+| `settings.py` | API key, app settings, Books folder. |
+
+- **`app.py` is now about 45 lines.** It creates the Flask app and adds the
+  three request checks, in the same order as before: convert old documents
+  once, map old `.json` names, then refuse unsafe names. It registers one
+  Flask Blueprint per feature file, and serves the start page. You still
+  start the app with `cd app && python3 app.py`.
+
+**How it was kept safe:**
+- **A pure move.** A script cut the file along the existing sections. A
+  second script then checked the result:
+  - All 132 functions exist exactly once.
+  - Their code is unchanged, except for two planned edits. `@app.route`
+    became `@bp.route`. And the movable book paths (`PROJECTS_DIR`,
+    `GLOBAL_STATE`, and friends) are now read as `paths.PROJECTS_DIR` when
+    used, so they follow a Books folder change.
+  - The app answers the same 49 routes, with the same methods.
+- **One real fix during the move:** `BASE_DIR` now sits one folder deeper,
+  in `app/sjb/`, so it was adjusted to still mean the `app/` folder. The
+  tests caught this at once.
+- **Tests:** all 38 server tests pass. The browser checks for the question
+  windows, export, and the AI preview pass against the split app.
+
+---
+
 ## 2026-10-22: App question windows instead of browser pop-ups
 
 One commit (`0730d46`). **Files:** `app/static/script.js`,
