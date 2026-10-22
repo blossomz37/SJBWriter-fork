@@ -1593,6 +1593,43 @@ body.zen .zen-exit {
   margin-right: auto;
 }
 
+/* ===================== EXPORT MANUSCRIPT ===================== */
+.export-content {
+  width: min(480px, 94vw);
+  height: auto;
+}
+
+.export-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 6px;
+  padding: 0;
+  border: none;
+}
+
+.export-group legend {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.export-group label,
+.export-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.export-check {
+  margin-top: 2px;
+}
+
+.export-content .modal-actions {
+  margin-top: 12px;
+}
+
 /* ===================== TRASH ===================== */
 /* Sized to its list; a long list scrolls inside */
 .trash-content {

@@ -337,6 +337,31 @@
   </div>
 </div>
 
+<!-- ===================== EXPORT MANUSCRIPT MODAL (project menu) ===================== -->
+<div id="exportModal" class="modal hidden">
+  <div class="modal-content export-content">
+    <button type="button" class="icon-btn ghost-btn modal-close tip-end" onclick="closeExport()" data-tip="Close (Esc)" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    <h2>Export manuscript</h2>
+    <p id="exportHint" class="trash-hint"></p>
+    <fieldset class="export-group">
+      <legend>Format</legend>
+      <label><input type="radio" name="exportFormat" value="docx" checked /> Word (.docx)</label>
+      <label><input type="radio" name="exportFormat" value="md" /> Markdown (.md)</label>
+    </fieldset>
+    <fieldset class="export-group">
+      <legend>Documents</legend>
+      <label><input type="radio" name="exportWhich" value="all" checked /> All of Writing</label>
+      <label><input type="radio" name="exportWhich" value="ticked" id="exportTicked" /> <span>Only ticked documents (<span id="exportTickedCount">0</span>)</span></label>
+    </fieldset>
+    <label class="export-check"><input type="checkbox" id="exportHeadings" checked /> Folder and document titles as headings</label>
+    <label class="export-check"><input type="checkbox" id="exportPageBreaks" checked /> Each document starts on a new page (Word)</label>
+    <div class="modal-actions">
+      <button type="button" onclick="closeExport()">Cancel</button>
+      <button type="button" class="primary-btn" onclick="runExport(this)">Export</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== TRASH MODAL (project menu) ===================== -->
 <div id="trashModal" class="modal hidden">
   <div class="modal-content trash-content">
