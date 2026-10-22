@@ -10,6 +10,7 @@
   --editor-measure: 70ch;
 
   --statusbar-h: 26px;
+  --topbar-h: 40px;
 }
 
 /* Light mode (default) */
@@ -180,7 +181,7 @@ button:hover {
 .container {
   display: flex;
   width: 100%;
-  height: calc(100vh - var(--statusbar-h));
+  height: calc(100vh - var(--topbar-h) - var(--statusbar-h));
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -210,12 +211,6 @@ button:hover {
 
 
 /* ===================== LEFT PANEL ===================== */
-.header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .gear-btn {
   font-size: 16px;
 }
@@ -1897,4 +1892,46 @@ body.ai-panel-open .ai-chip {
 /* Keep toasts clear of the open AI panel */
 body.ai-panel-open .toast-stack {
   right: 316px;
+}
+
+
+/* ===================== TOP BAR ===================== */
+.top-bar {
+  position: relative;
+  z-index: 20;   /* tooltips below the bar draw over the panes */
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px 0 12px;
+  background-color: var(--panel);
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+.top-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.top-bar-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+}
+
+.top-bar-version {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+body.zen .top-bar {
+  display: none;
 }

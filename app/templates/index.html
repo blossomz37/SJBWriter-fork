@@ -21,17 +21,23 @@
 <body>
 {% include "_icons.html" %}
 
+<!-- ===================== TOP BAR ===================== -->
+<header class="top-bar">
+  <div class="top-bar-brand">
+    <img src="{{ url_for('static', filename='apple-touch-icon.png') }}" alt="SJB Writer" class="top-bar-logo" />
+    <span class="top-bar-version">v{{ app_version }}</span>
+  </div>
+  <div class="top-bar-actions">
+    <button type="button" id="modeToggle" class="icon-btn ghost-btn tip-end" onclick="toggleLightDark()" data-tip="Dark mode" aria-label="Switch to dark mode"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+    <button type="button" class="icon-btn ghost-btn gear-btn tip-end" onclick="openSettings()" data-tip="Settings" aria-label="Settings"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg></button>
+  </div>
+</header>
+
 <!-- ===================== APP CONTAINER ===================== -->
 <div class="container">
 
   <!-- ===================== LEFT PANEL: CONTEXT BUILDER ===================== -->
   <div class="left">
-
-  <!-- ---------- APP HEADER / GLOBAL CONTROLS ---------- -->
-  <div class="header-row">
-    <h2>Your Writing Helper</h2>
-    <button type="button" class="icon-btn ghost-btn gear-btn tip-end" onclick="openSettings()" data-tip="Settings" aria-label="Settings"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg></button>
-  </div>
 
   <div class="section-group">
     <!-- ---------- PROJECT CONTEXT (Background + Writing) ---------- -->
@@ -294,7 +300,7 @@
         class="about-app-icon"
       />
       <h3>SJB Writer</h3>
-      <p id="aboutVersion">Version 0.9.0</p>
+      <p id="aboutVersion">Version {{ app_version }}</p>
       <p class="about-description">
         A local-first writing environment.
       </p>
