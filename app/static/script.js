@@ -5039,6 +5039,73 @@ function closeHistory() {
 
 
 // =====================
+// BOOKS FOLDER (Settings): where prompts, system rules, and projects live
+// =====================
+
+async function loadDataFolder() {
+  const data = await (await fetch('/data_folder')).json();
+  document.getElementById("dataFolderPath").textContent = data.path;
+  document.getElementById("dataFolderReset").classList.toggle("hidden", data.isAppFolder);
+  return data;
+}
+
+async function chooseDataFolder(button) {
+  button.disabled = true;
+  try {
+    // The server opens the Mac "Choose folder" window; elsewhere, type a path
+    let { data: pick } = await postJSON('/choose_data_folder', {});
+    if (pick.cancelled) return;
+    if (pick.error === "no-picker") {
+      const typed = window.prompt("Folder for your books (full path):");
+      if (!typed) return;
+      ({ data: pick } = await postJSON('/folder_info', { path: typed }));
+      if (!pick.exists) {
+        showToast("That folder does not exist.");
+        return;
+      }
+    }
+
+    const copy = !pick.hasBooks;
+    const question = copy
+      ? `Copy your books to\n${pick.path}\nand use them from there? The originals stay where they are, as a backup.`
+      : `${pick.path}\nalready has books. Use them? Your current books stay where they are.`;
+    if (!confirm(question)) return;
+
+    await switchDataFolder({ path: pick.path, copy });
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function resetDataFolder() {
+  if (!confirm("Use the books in the app folder again? The books in your chosen folder stay there.")) return;
+  await switchDataFolder({ path: null, copy: false });
+}
+
+async function switchDataFolder(body) {
+  if (isDirty) await saveCurrentFile();
+  const { ok, data } = await postJSON('/set_data_folder', body);
+  if (!ok) {
+    showToast(data.error || "Could not change the books folder.");
+    return;
+  }
+  await loadProjects();   // sets currentProject for the new place
+  loadSelections();
+  await loadAll();
+  await loadDataFolder();
+  showToast(`Books folder: ${data.path}`, "info");
+}
+
+// A chosen folder that went missing (an unplugged drive): say so at start
+async function warnIfDataFolderMissing() {
+  const data = await (await fetch('/data_folder')).json();
+  if (data.missing) {
+    showToast(`Your books folder is missing: ${data.missing}. Using the app folder until it is back.`);
+  }
+}
+
+
+// =====================
 // OUTSIDE CHANGES: documents are plain .md files, so another program
 // (Obsidian) may add, remove, or edit them while the app is open
 // =====================
@@ -5343,6 +5410,7 @@ async function openSettings() {
   savedModelName = settings.modelName;
   savedModelSource = settings.modelSource;
   loadSettingsIntoUI();
+  await loadDataFolder();
   await loadApiKeyStatus();
   await fetchModels();
   document.getElementById("settingsModal").classList.remove("hidden");
@@ -5683,6 +5751,8 @@ window.onload = async () => {
   applyAiEnabled();
   initGenerationPanel();
   initMarkersPanel();
+  warnIfDataFolderMissing();
+
   // Prices stay current: the app refreshes them once a day, only while AI is on
   loadOpenRouterCatalog(aiEnabled()).then(() => {
     renderModelDropdown();

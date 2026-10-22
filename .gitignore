@@ -22,6 +22,8 @@ workspace-agents/
 
 # Personal app settings (font, theme, recent projects); the app recreates it
 Global/app_state.json
+# Where the writer keeps their books (Settings → Books folder)
+data_folder.json
 .env
 # Version history, trash, and pre-Markdown JSON backups kept by the app (must stay last to win over the sample-project exception)
 .history/

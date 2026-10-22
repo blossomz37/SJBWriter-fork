@@ -4,6 +4,7 @@ import os
 import re
 import json
 import shutil
+import subprocess
 import tempfile
 import requests
 from datetime import datetime
@@ -17,23 +18,50 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 # ===================== PATH CONFIG =====================
-# Global (tools)
-GLOBAL_DIR = os.path.join(BASE_DIR, "..", "Global")
-GLOBAL_STATE = os.path.join(GLOBAL_DIR, "state.json")
+APP_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 
-# Project
-PROJECTS_DIR = os.path.join(BASE_DIR, "..", "Projects")
-SAMPLE_PROJECT_STATE = os.path.join(
-    PROJECTS_DIR, "sample-project", "state.json"
-)
+# App settings stay with the app: API key, model lists, app state
+GLOBAL_DIR = os.path.join(APP_ROOT, "Global")
 APP_STATE = os.path.join(GLOBAL_DIR, "app_state.json")
+
+# The shipped sample project; new projects copy its menu
+SAMPLE_PROJECT_STATE = os.path.join(APP_ROOT, "Projects", "sample-project", "state.json")
+
+# The writer's books: prompts, system rules, their menu, and all projects.
+# They live in the app folder unless the writer picks another folder in
+# Settings (saved in data_folder.json), for example inside an Obsidian vault.
+DATA_FOLDER_FILE = os.path.join(APP_ROOT, "data_folder.json")
+
+
+def saved_data_folder():
+    try:
+        with open(DATA_FOLDER_FILE, "r", encoding="utf-8") as f:
+            path = json.load(f).get("path")
+        return path if isinstance(path, str) and path else None
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def set_data_root(root):
+    """Point every book path at root. Takes effect at once; no restart needed."""
+    global DATA_ROOT, LIBRARY_DIR, GLOBAL_STATE, PROJECTS_DIR, DOCUMENTS_MIGRATED
+    DATA_ROOT = os.path.abspath(root)
+    LIBRARY_DIR = os.path.join(DATA_ROOT, "Global")     # prompts, system, state.json
+    GLOBAL_STATE = os.path.join(LIBRARY_DIR, "state.json")
+    PROJECTS_DIR = os.path.join(DATA_ROOT, "Projects")
+    DOCUMENTS_MIGRATED = False
+
+
+# A chosen folder that is missing (an unplugged drive) falls back to the app
+# folder; the page warns about it
+set_data_root(saved_data_folder() if saved_data_folder() and os.path.isdir(saved_data_folder()) else APP_ROOT)
 
 
 # ===================== STRUCTURE INIT =====================
 def ensure_structure():
     # Global folders
-    os.makedirs(os.path.join(GLOBAL_DIR, "prompts"), exist_ok=True)
-    os.makedirs(os.path.join(GLOBAL_DIR, "system"), exist_ok=True)
+    os.makedirs(os.path.join(LIBRARY_DIR, "prompts"), exist_ok=True)
+    os.makedirs(os.path.join(LIBRARY_DIR, "system"), exist_ok=True)
 
     # Global state
     if not os.path.exists(GLOBAL_STATE):
@@ -137,7 +165,7 @@ def migrate_state_file(state_path, folders, last_key):
 def migrate_documents():
     migrate_state_file(
         GLOBAL_STATE,
-        {s: os.path.join(GLOBAL_DIR, s) for s in ("prompts", "system")},
+        {s: os.path.join(LIBRARY_DIR, s) for s in ("prompts", "system")},
         "last_opened_global"
     )
     if not os.path.isdir(PROJECTS_DIR):
@@ -151,9 +179,6 @@ def migrate_documents():
             {s: os.path.join(project_dir, s) for s in ("background", "writing")},
             "last_opened_project"
         )
-
-
-DOCUMENTS_MIGRATED = False
 
 
 @app.before_request
@@ -511,7 +536,7 @@ def get_state_file(section):
 
 def get_base_path(section):
     if section in ["prompts", "system"]:
-        return os.path.join(GLOBAL_DIR, section)
+        return os.path.join(LIBRARY_DIR, section)
     return os.path.join(get_project_dir(), section)
 
 def load_file_content(section, filename):
@@ -2953,6 +2978,115 @@ def api_empty_trash():
             removed += len([n for n in os.listdir(root) if not n.startswith(".")])
             shutil.rmtree(root)
     return jsonify({"status": "emptied", "removed": removed})
+
+
+# ----- BOOKS FOLDER (Settings) -----
+
+def has_books(root):
+    return os.path.isdir(os.path.join(root, "Projects")) or \
+        os.path.exists(os.path.join(root, "Global", "state.json"))
+
+
+def inside(path, parent):
+    path, parent = os.path.realpath(path), os.path.realpath(parent)
+    return path == parent or path.startswith(parent + os.sep)
+
+
+def copy_books(src_root, dest_root):
+    """Copy prompts, system rules, their menu, and all projects. The originals stay."""
+    skip = shutil.ignore_patterns(".tmp-*", ".DS_Store")
+    for part in (("Global", "prompts"), ("Global", "system"), ("Projects",)):
+        src = os.path.join(src_root, *part)
+        if os.path.isdir(src):
+            shutil.copytree(src, os.path.join(dest_root, *part), ignore=skip, dirs_exist_ok=True)
+    state = os.path.join(src_root, "Global", "state.json")
+    if os.path.exists(state):
+        shutil.copy2(state, os.path.join(dest_root, "Global", "state.json"))
+
+
+def data_folder_status():
+    saved = saved_data_folder()
+    return {
+        "path": DATA_ROOT,
+        "isAppFolder": DATA_ROOT == APP_ROOT,
+        "missing": saved if saved and not os.path.isdir(saved) else None
+    }
+
+
+@app.route('/data_folder', methods=['GET'])
+def api_data_folder():
+    return jsonify(data_folder_status())
+
+
+@app.route('/choose_data_folder', methods=['POST'])
+def api_choose_data_folder():
+    """Open the Mac "Choose folder" window. A web page cannot see real paths,
+    so the server asks. Other systems get {"error": "no-picker"}; the page
+    then asks for a typed path."""
+    if shutil.which("osascript") is None:
+        return jsonify({"error": "no-picker"})
+    script = [
+        "-e", "activate",
+        "-e", 'POSIX path of (choose folder with prompt "Choose the folder for your books")'
+    ]
+    try:
+        result = subprocess.run(["osascript", *script], capture_output=True, text=True, timeout=600)
+    except subprocess.TimeoutExpired:
+        return jsonify({"cancelled": True})
+    if result.returncode != 0:
+        return jsonify({"cancelled": True})   # the writer clicked Cancel
+    path = os.path.abspath(result.stdout.strip())
+    return jsonify({"path": path, "hasBooks": has_books(path)})
+
+
+@app.route('/folder_info', methods=['POST'])
+def api_folder_info():
+    """For a typed path: does it exist, and does it hold books already?"""
+    path = os.path.abspath(os.path.expanduser(str((request.json or {}).get("path") or "")))
+    return jsonify({"path": path, "exists": os.path.isdir(path), "hasBooks": has_books(path)})
+
+
+@app.route('/set_data_folder', methods=['POST'])
+def api_set_data_folder():
+    data = request.json or {}
+    target = data.get("path")
+    copy = bool(data.get("copy"))
+
+    if target:
+        target = os.path.abspath(os.path.expanduser(str(target)))
+        if not os.path.isdir(target):
+            return jsonify({"error": "That folder does not exist."}), 400
+        if not os.access(target, os.W_OK):
+            return jsonify({"error": "The app cannot write to that folder."}), 400
+        if inside(target, PROJECTS_DIR) or inside(target, LIBRARY_DIR):
+            return jsonify({"error": "Pick a folder outside your current books."}), 400
+        if os.path.realpath(target) == os.path.realpath(APP_ROOT):
+            target = None   # the app folder is the default
+
+    if target and copy:
+        if has_books(target):
+            return jsonify({"error": "That folder already has books. Use them instead of copying."}), 400
+        copy_books(DATA_ROOT, target)
+
+    if target:
+        save_json(DATA_FOLDER_FILE, {"path": target})
+    elif os.path.exists(DATA_FOLDER_FILE):
+        os.remove(DATA_FOLDER_FILE)
+    set_data_root(target or APP_ROOT)
+
+    # Open a project that exists in the new place
+    app_state = load_app_state()
+    projects = sorted(
+        p for p in (os.listdir(PROJECTS_DIR) if os.path.isdir(PROJECTS_DIR) else [])
+        if not p.startswith(".") and os.path.isdir(os.path.join(PROJECTS_DIR, p))
+    )
+    if app_state.get("current_project") not in projects:
+        app_state["current_project"] = projects[0] if projects else "default"
+    app_state["recent_projects"] = [p for p in app_state.get("recent_projects", []) if p in projects]
+    write_app_state(app_state)
+    ensure_structure()
+
+    return jsonify({"status": "set", **data_folder_status()})
 
 
 @app.route('/save_app_state', methods=['POST'])

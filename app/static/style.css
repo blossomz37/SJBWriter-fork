@@ -1519,6 +1519,28 @@ body.zen .zen-exit {
   overflow-wrap: break-word;
 }
 
+/* ===================== BOOKS FOLDER (Settings) ===================== */
+.data-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.data-folder-path {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.data-folder-reset {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
 /* ===================== AI REQUEST PREVIEW ===================== */
 .request-content {
   width: min(860px, 94vw);
