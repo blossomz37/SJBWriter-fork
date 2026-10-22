@@ -10,6 +10,7 @@ import importlib.util
 import json
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -37,6 +38,20 @@ class NoNetwork(Exception):
 
 def no_network(*args, **kwargs):
     raise NoNetwork("Tests must not reach the network; fake the call instead.")
+
+
+class AnyPart:
+    """Looks a name up in each part of the app, at the moment it is used, so a
+    value that changes while the app runs (the books folder) is always current."""
+
+    def __init__(self, modules):
+        self._modules = modules
+
+    def __getattr__(self, name):
+        for module in self._modules:
+            if hasattr(module, name):
+                return getattr(module, name)
+        raise AttributeError(name)
 
 
 class AppTestCase(unittest.TestCase):
@@ -80,22 +95,32 @@ class AppTestCase(unittest.TestCase):
         })
 
     def load_app(self):
-        """A fresh copy of the app module, reading the throwaway folder."""
-        spec = importlib.util.spec_from_file_location(f"sjb_app_{id(self)}", f"{self.root}/app/app.py")
+        """A fresh copy of the app and its sjb package, reading the throwaway folder.
+        Returns one object that finds a name in any part (app.py or sjb/*.py)."""
+        app_dir = f"{self.root}/app"
+        # Forget any sjb package loaded by an earlier test (it points at another folder)
+        for name in [n for n in sys.modules if n == "sjb" or n.startswith("sjb.")]:
+            del sys.modules[name]
+        sys.path.insert(0, app_dir)
+        self.addCleanup(lambda: sys.path.remove(app_dir) if app_dir in sys.path else None)
+
+        spec = importlib.util.spec_from_file_location(f"sjb_app_{id(self)}", f"{app_dir}/app.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        patcher_get = mock.patch.object(module.requests, "get", side_effect=no_network)
-        patcher_post = mock.patch.object(module.requests, "post", side_effect=no_network)
+        parts = [sys.modules[n] for n in sorted(sys.modules) if n.startswith("sjb.")]
+
+        patcher_get = mock.patch("requests.get", side_effect=no_network)
+        patcher_post = mock.patch("requests.post", side_effect=no_network)
         patcher_get.start()
         patcher_post.start()
         self.addCleanup(patcher_get.stop)
         self.addCleanup(patcher_post.stop)
         # Keep the console quiet: missing-file reads print a note by design
-        quiet = mock.patch.object(module, "print", create=True, new=lambda *a, **k: None)
+        quiet = mock.patch("builtins.print", new=lambda *a, **k: None)
         quiet.start()
         self.addCleanup(quiet.stop)
         self.client = module.app.test_client()
-        return module
+        return AnyPart([sys.modules["sjb.paths"], module, *parts])
 
     # ----- small helpers -----
 
