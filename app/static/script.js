@@ -166,6 +166,7 @@ function insertPrefix(prefix) {
 
 async function changeEditorFont(font) {
   editor.style.fontFamily = font;
+  schedulePreviewRender();
   state.app_state.editor_font = font;
   await fetch('/save_app_state', {
     method: 'POST',
@@ -182,6 +183,7 @@ async function changeEditorFont(font) {
 
 async function changeEditorSize(size) {
   editor.style.fontSize = size;
+  schedulePreviewRender();
   state.app_state.editor_font_size = size;
   await fetch('/save_app_state', {
     method: 'POST',
@@ -2069,6 +2071,7 @@ async function loadAll() {
     };
 
     editor.value = "";
+    schedulePreviewRender();
     titleInput.value = "";
   }
 
@@ -2119,6 +2122,7 @@ async function loadAll() {
       };
 
       editor.value = "";
+      schedulePreviewRender();
       titleInput.value = "";
 
       isDirty = false;
@@ -3486,6 +3490,7 @@ function toggleMenu(row, section, filename) {
 
           titleInput.value = "";
           editor.value = "";
+          schedulePreviewRender();
 
           isDirty = false;
 
@@ -3540,7 +3545,84 @@ function updateWordCount() {
   const text = editor.value.trim();
   const count = text === "" ? 0 : text.split(/\s+/).length;
   document.getElementById("wordCount").textContent = `${count.toLocaleString()} words`;
+  schedulePreviewRender();
 }
+
+
+// =====================
+// MARKDOWN PREVIEW
+// =====================
+
+const preview = document.getElementById("preview");
+const IMAGE_URL = /\.(png|jpe?g|gif|webp|svg|avif)(\?.*)?$/i;
+let previewOn = false;
+let previewFrame = null;
+
+function renderPreview() {
+  previewFrame = null;
+
+  const html = marked.parse(editor.value, { gfm: true, breaks: true });
+  preview.innerHTML = DOMPurify.sanitize(html);
+
+  preview.querySelectorAll("a[href]").forEach(a => {
+    const href = a.getAttribute("href");
+
+    // A plain link straight to an image file shows the image
+    if (IMAGE_URL.test(href) && !a.querySelector("img")) {
+      const img = document.createElement("img");
+      img.src = href;
+      img.alt = a.textContent;
+      a.textContent = "";
+      a.appendChild(img);
+    }
+
+    // Open links in a new tab so the app never navigates away
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+  });
+
+  // Match the editor's chosen font
+  preview.style.fontFamily = editor.style.fontFamily;
+  preview.style.fontSize = editor.style.fontSize;
+}
+
+// Re-render at most once per frame (generation streams many small chunks)
+function schedulePreviewRender() {
+  if (!previewOn || previewFrame) return;
+  previewFrame = requestAnimationFrame(renderPreview);
+}
+
+function setPreview(on) {
+  previewOn = on;
+  if (on) renderPreview();
+
+  editor.classList.toggle("hidden", on);
+  preview.classList.toggle("hidden", !on);
+  document.getElementById("previewToggle").setAttribute("aria-pressed", String(on));
+  document.querySelectorAll(".formatting .md-tool").forEach(btn => {
+    btn.disabled = on;
+  });
+
+  try {
+    localStorage.setItem("sjb_preview", on ? "1" : "0");
+  } catch (e) {}
+
+  if (!on) editor.focus();
+}
+
+function togglePreview() {
+  setPreview(!previewOn);
+}
+
+preview.addEventListener("dblclick", () => setPreview(false));
+
+// ⌘E / Ctrl+E toggles preview (same key as Obsidian)
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "e") {
+    e.preventDefault();
+    togglePreview();
+  }
+});
 
 
 let settings = {
@@ -3861,4 +3943,8 @@ window.onload = async () => {
   await loadAll();
   loadTheme();
   updateUndoButton();
+
+  try {
+    if (localStorage.getItem("sjb_preview") === "1") setPreview(true);
+  } catch (e) {}
 };
