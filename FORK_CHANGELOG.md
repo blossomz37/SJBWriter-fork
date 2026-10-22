@@ -7,6 +7,95 @@ Each entry says what changed, why, and how it works, in plain words, so any
 change can be re-built or cherry-picked on its own. Commit hashes refer to the
 fork.
 
+## Overview by area
+
+The dated entries below are newest first. This overview groups them by area;
+each line links to its full entry.
+
+**At a glance (from Jim's version to this fork):** 42 entries, each change
+tested on a scratch copy before it was merged. Documents moved from JSON to
+Markdown. The server went from one 1,844-line file to 12 small files, and
+the page script from one 3,863-line file to nine. The fork adds 38 server
+tests and a browser smoke test (Jim's version had none).
+
+### Never lose a word
+
+Saving is safe, old text is kept, and deletes can be undone.
+
+- [Safe saving, version history, trash, and name checks](#2026-10-22-safe-saving-version-history-trash-and-name-checks): Saves can no longer leave a broken file; every document keeps its last 50 versions; deletes go to a trash folder; names that could reach outside the data folders are refused.
+- [Trash window with Restore](#2026-10-22-trash-window-with-restore): Project ⋯ → Trash… lists deleted documents and projects; Restore puts them back where they were.
+- [Documents are Markdown files](#2026-10-22-documents-are-markdown-files): When another program (Obsidian) edits a file, the app keeps that version in history before saving over it, and reloads the open document when you come back.
+
+### Own your files
+
+Your books are plain files you can open anywhere, kept wherever you like.
+
+- [Documents are Markdown files](#2026-10-22-documents-are-markdown-files): Every document is a `.md` file with a title header; a one-time conversion keeps the old JSON files as backups.
+- [Books folder: keep your books anywhere](#2026-10-22-books-folder-keep-your-books-anywhere): Settings → Books folder picks any folder (for example in an Obsidian vault), with the Mac folder window.
+- [Export to Markdown and Word](#2026-10-22-export-to-markdown-and-word): Export one document, or the whole manuscript, as Markdown or a Word file in standard manuscript format.
+- [Personal prompts and system rules stay out of Git](#2026-10-22-personal-prompts-and-system-rules-stay-out-of-git): Your own prompts and rules stay off GitHub; the shipped starters stay.
+- [Stray `\n` text removed from five EPBM prompts](#2026-10-22-stray-n-text-removed-from-five-epbm-prompts): Removed typed `\n` text from five EPBM starter prompts.
+
+### Working with the AI
+
+See exactly what is sent, control how it answers, and know what it costs.
+
+- [Labeled AI request, and "What the AI will see"](#2026-10-22-labeled-ai-request-and-what-the-ai-will-see): System files go as real rules; notes, chapters, the open document, and the instruction are each labeled; a window shows the exact text before you send.
+- [Max reply length and a cost estimate](#2026-10-22-max-reply-length-and-a-cost-estimate): A reply length limit, and the cost before you send, from OpenRouter's price list (refreshed daily).
+- [Temperature, reasoning, and an OpenRouter model check](#2026-10-22-temperature-reasoning-and-an-openrouter-model-check): Temperature and reasoning settings, and a check of your models against OpenRouter (removed or leaving soon).
+- [Wishlist batch: windows, AI on/off, web search, duplicate](#2026-10-22-wishlist-batch-windows-ai-onoff-web-search-duplicate): Web search, AI features on/off (a plain editor), duplicate, and windows that close three ways.
+- [AI setup panel on the right, with a summary chip](#2026-10-22-ai-setup-panel-on-the-right-with-a-summary-chip): System and Prompts move to a panel on the right, with a summary chip next to Generate.
+- [System section above Prompts by default](#2026-10-22-system-section-above-prompts-by-default): System comes first in that panel.
+- [AI output marker settings, and a marker placement fix](#2026-10-22-ai-output-marker-settings-and-a-marker-placement-fix): The markers around AI text can be turned off or reworded; AI text now lands inside them.
+- [Output markers moved into the AI setup panel](#2026-10-22-output-markers-moved-into-the-ai-setup-panel): Marker settings live in the AI setup panel.
+- [Editor minimum width; AI setup tucks away when space runs out](#2026-10-22-editor-minimum-width-ai-setup-tucks-away-when-space-runs-out): The AI panel tucks away when the editor would get too narrow.
+
+### Writing and the editor
+
+A calmer page with the numbers a writer wants.
+
+- [Markdown preview toggle](#2026-10-22-markdown-preview-toggle): Preview the document as formatted text (⌘E).
+- [Sidebar toggle, zen mode, status bar, shortcuts, file reveal](#2026-10-22-sidebar-toggle-zen-mode-status-bar-shortcuts-file-reveal): Hide the sidebar, zen mode, a status bar, keyboard shortcuts, and the open file always visible in the sidebar.
+- [Dialogue percent in the status bar](#2026-10-22-dialogue-percent-in-the-status-bar): The share of words inside quotes, in the status bar.
+- [Word counts without `(?)`, and a clearer token meter](#2026-10-22-word-counts-without--and-a-clearer-token-meter): Word counts everywhere, never `(?)`; a clearer token meter.
+- [Close the document; the logo goes home](#2026-10-22-close-the-document-the-logo-goes-home): Close the open document; the logo goes to the empty screen.
+- [Empty state when no document is open](#2026-10-22-empty-state-when-no-document-is-open): A friendly empty screen when no document is open.
+
+### Sidebar and organizing
+
+Find, sort, and move documents without fuss.
+
+- [Sidebar: fold, sort, reorder sections, move files between sections](#2026-10-22-sidebar-fold-sort-reorder-sections-move-files-between-sections): Fold sections, sort A–Z or by hand, reorder sections, and move files between sections.
+- [Icons for projects, folders, and documents](#2026-10-22-icons-for-projects-folders-and-documents): Icons for projects, folders, and documents.
+- [Documents indented clearly under their folders](#2026-10-22-documents-indented-clearly-under-their-folders): Documents indent under their folders.
+- [Section contents indented under the section label](#2026-10-22-section-contents-indented-under-the-section-label): Section contents indent under the section label.
+- [Project header shows just the name](#2026-10-22-project-header-shows-just-the-name): The project header shows just the name.
+- ["ALPHA" project menu label renamed](#2026-10-22-alpha-project-menu-label-renamed): The confusing "ALPHA" label is renamed.
+- [New-document buttons show a page with a plus](#2026-10-22-new-document-buttons-show-a-page-with-a-plus): The New document button shows a page with a plus.
+- [Resizable sidebar and AI setup panel](#2026-10-22-resizable-sidebar-and-ai-setup-panel): Drag to resize the sidebar and the AI panel.
+
+### Look and layout
+
+One consistent, modern look that works at any window size.
+
+- [UI polish, batch 1 (CSS only)](#2026-10-22-ui-polish-batch-1-css-only): Readable line length, thin scrollbars, a modern UI font, clear zones, quieter headings.
+- [UI polish, batch 3: icons, mode + accent themes, toasts](#2026-10-22-ui-polish-batch-3-icons-mode--accent-themes-toasts): Lucide icons with instant tooltips, light/dark × accent colors, and toast messages.
+- [Top bar with logo, version, light/dark switch, and settings](#2026-10-22-top-bar-with-logo-version-lightdark-switch-and-settings): A top bar with logo, version, light/dark switch, and settings.
+- [Panel toggles in the top bar](#2026-10-22-panel-toggles-in-the-top-bar): Panel buttons in the top bar.
+- [Sticky top bar, two layout bugs, and logo first](#2026-10-22-sticky-top-bar-two-layout-bugs-and-logo-first): The top bar stays put; two layout bugs fixed.
+- [One consistent 16 px gutter](#2026-10-22-one-consistent-16-px-gutter): One 16 px margin everywhere.
+- [Menu text sized like the sidebar](#2026-10-22-menu-text-sized-like-the-sidebar): Menu text matches the sidebar.
+- [Toolbar overflow menus, and a clearer token meter](#2026-10-22-toolbar-overflow-menus-and-a-clearer-token-meter): Toolbar buttons that do not fit fold into a ⋯ menu.
+- [App question windows instead of browser pop-ups](#2026-10-22-app-question-windows-instead-of-browser-pop-ups): App windows replace every browser pop-up; deletes need a click on a red button.
+
+### Under the hood (for developers)
+
+Easier and safer to change.
+
+- [Housekeeping: tests, requirements, dead code, narrow windows](#2026-10-22-housekeeping-tests-requirements-dead-code-narrow-windows): 38 server tests, `requirements.txt`, dead code removed, and no sideways scroll in narrow windows.
+- [Server code split into small files](#2026-10-22-server-code-split-into-small-files): `app.py` (3,342 lines) is now a 44-line start file plus 11 small files in `app/sjb/`.
+- [Page script split into nine files, plus a browser smoke test](#2026-10-22-page-script-split-into-nine-files-plus-a-browser-smoke-test): `script.js` (5,842 lines) is now nine files in `app/static/js/`, with a browser smoke test.
+
 ---
 
 ## 2026-10-22: Page script split into nine files, plus a browser smoke test
