@@ -538,6 +538,30 @@ def generation_options(settings):
     return temperature, (effort if effort in REASONING_EFFORTS else None)
 
 
+def per_token_price(value):
+    """OpenRouter prices are strings in dollars per token; routers list -1 (unknown)."""
+    try:
+        price = float(value)
+    except (TypeError, ValueError):
+        return None
+    return price if price >= 0 else None
+
+
+def reply_limit(settings):
+    """Max reply tokens from the client, capped at the model's own limit; None = no limit."""
+    try:
+        limit = int(settings.get("maxTokens") or 0)
+    except (TypeError, ValueError):
+        return None
+    if limit < 1:
+        return None
+    info = (load_json(OPENROUTER_CATALOG) or {}).get("models", {}).get(settings.get("modelName")) \
+        if os.path.exists(OPENROUTER_CATALOG) else None
+    if info and info.get("max_out"):
+        limit = min(limit, info["max_out"])
+    return limit
+
+
 def web_search_plugin(settings):
     """OpenRouter's web plugin when search is on: 1-10 results (10 is the per-search price cap)."""
     if not settings.get("webSearch"):
@@ -652,6 +676,9 @@ def call_openrouter(request_parts, settings):
         data["temperature"] = temperature
     if effort:
         data["reasoning"] = {"effort": effort}
+    limit = reply_limit(settings)
+    if limit:
+        data["max_tokens"] = limit
 
     # Web search (OpenRouter plugin; billed per search, even on free models)
     web = web_search_plugin(settings)
@@ -741,7 +768,10 @@ def call_ollama(request_parts, settings):
     # Ollama: temperature goes in options; "think" turns reasoning on or off
     temperature, effort = generation_options(settings)
     if temperature is not None:
-        data["options"] = {"temperature": temperature}
+        data.setdefault("options", {})["temperature"] = temperature
+    limit = reply_limit(settings)
+    if limit:
+        data.setdefault("options", {})["num_predict"] = limit
     if effort:
         data["think"] = effort != "none"
 
@@ -863,7 +893,8 @@ def api_generate():
         "temperature": client_settings.get("temperature"),
         "reasoning": client_settings.get("reasoning"),
         "webSearch": client_settings.get("webSearch"),
-        "webMaxResults": client_settings.get("webMaxResults")
+        "webMaxResults": client_settings.get("webMaxResults"),
+        "maxTokens": client_settings.get("maxTokens")
     }
 
     if model_source == "openrouter":
@@ -2279,17 +2310,14 @@ def api_duplicate_project():
 
 # ----- OPENROUTER MODEL CHECK -----
 OPENROUTER_CATALOG = os.path.join(GLOBAL_DIR, "openrouter_models.json")
+CATALOG_MAX_AGE = 24 * 60 * 60   # seconds; the app refreshes prices once a day
 
 
-@app.route('/check_openrouter_models', methods=['POST'])
-def api_check_openrouter_models():
-    """Fetch OpenRouter's live model list, keep a compact copy, and report on the user's models."""
-    try:
-        response = requests.get("https://openrouter.ai/api/v1/models", timeout=20)
-        response.raise_for_status()
-        live = response.json().get("data", [])
-    except Exception as e:
-        return jsonify({"error": f"Could not reach OpenRouter: {e}"}), 502
+def refresh_openrouter_catalog():
+    """Fetch OpenRouter's live model list and keep a compact copy. Raises on network errors."""
+    response = requests.get("https://openrouter.ai/api/v1/models", timeout=20)
+    response.raise_for_status()
+    live = response.json().get("data", [])
 
     catalog = {
         m["id"]: {
@@ -2297,12 +2325,28 @@ def api_check_openrouter_models():
             "context": m.get("context_length"),
             "expires": m.get("expiration_date"),
             "reasoning": m.get("reasoning"),
-            "temperature": "temperature" in (m.get("supported_parameters") or [])
+            "temperature": "temperature" in (m.get("supported_parameters") or []),
+            # Dollars per token; base rates (some models list time-of-day discounts)
+            "price": {
+                "in": per_token_price((m.get("pricing") or {}).get("prompt")),
+                "out": per_token_price((m.get("pricing") or {}).get("completion"))
+            },
+            "max_out": (m.get("top_provider") or {}).get("max_completion_tokens")
         }
         for m in live if m.get("id")
     }
     checked_at = datetime.now().isoformat(timespec="seconds")
     save_json(OPENROUTER_CATALOG, {"checked_at": checked_at, "models": catalog})
+    return checked_at, catalog
+
+
+@app.route('/check_openrouter_models', methods=['POST'])
+def api_check_openrouter_models():
+    """Fetch OpenRouter's live model list, keep a compact copy, and report on the user's models."""
+    try:
+        checked_at, catalog = refresh_openrouter_catalog()
+    except Exception as e:
+        return jsonify({"error": f"Could not reach OpenRouter: {e}"}), 502
 
     report = []
     for model in (load_model_list() or {}).get("openrouter", []):
@@ -2319,8 +2363,25 @@ def api_check_openrouter_models():
 
 @app.route('/openrouter_catalog', methods=['GET'])
 def api_openrouter_catalog():
-    """The last check's copy of OpenRouter's model list (empty before the first check)."""
-    return jsonify(load_json(OPENROUTER_CATALOG) or {})
+    """The saved copy of OpenRouter's model list. With ?auto=1 it is fetched again
+    first when it is missing, older than a day, or from before prices were kept."""
+    saved = (load_json(OPENROUTER_CATALOG) or {}) if os.path.exists(OPENROUTER_CATALOG) else {}
+
+    if request.args.get("auto"):
+        try:
+            age = datetime.now() - datetime.fromisoformat(saved.get("checked_at", ""))
+            stale = age.total_seconds() > CATALOG_MAX_AGE
+        except (TypeError, ValueError):
+            stale = True
+        has_prices = any("price" in m for m in saved.get("models", {}).values())
+        if stale or not has_prices:
+            try:
+                checked_at, catalog = refresh_openrouter_catalog()
+                saved = {"checked_at": checked_at, "models": catalog}
+            except Exception:
+                pass  # Offline: keep the old copy
+
+    return jsonify(saved)
 
 
 # ----- MOVE A FILE TO ANOTHER SECTION -----

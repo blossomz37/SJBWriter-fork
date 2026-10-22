@@ -244,6 +244,12 @@
       </select>
       <p class="ai-markers-note" id="reasoningNote">Models that cannot reason ignore this.</p>
 
+      <div class="generation-row max-length">
+        <label for="maxTokensInput">Max reply length</label>
+        <input type="number" id="maxTokensInput" min="1" step="100" placeholder="No limit" />
+      </div>
+      <p class="ai-markers-note" id="maxTokensNote">In tokens (1,000 is about 750 words). Reasoning counts too. Leave it empty for no limit.</p>
+
       <label class="ai-markers-check generation-web">
         <input type="checkbox" id="webSearchToggle" />
         Search the web
@@ -316,6 +322,7 @@
     <button type="button" class="icon-btn ghost-btn modal-close tip-end" onclick="closeRequestPreview()" data-tip="Close (Esc)" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
     <h2>What the AI will see</h2>
     <p id="requestSummary" class="trash-hint"></p>
+    <p id="requestCost" class="trash-hint request-cost"></p>
     <div class="request-body">
       <h3 class="request-label">Rules <span>system message, from your System files</span></h3>
       <pre id="requestSystem" class="request-text"></pre>

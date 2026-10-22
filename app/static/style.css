@@ -1533,6 +1533,10 @@ body.zen .zen-exit {
   gap: 8px;
 }
 
+.request-cost {
+  margin-top: -8px;
+}
+
 .request-label {
   margin: 8px 0 0;
   font-size: 13px;
@@ -2631,12 +2635,22 @@ body.ai-off #tokenMeter {
   margin-top: 10px;
 }
 
+.max-length {
+  margin-top: 10px;
+}
+
+.max-length input,
 .web-max input {
   width: 64px;
   padding: 4px 6px;
   border-radius: 6px;
   font-size: 12px;
   text-align: right;
+}
+
+/* Room for six digits or the "No limit" hint */
+.max-length input {
+  width: 84px;
 }
 
 .ai-generation.web-off .web-max {
