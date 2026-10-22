@@ -12,7 +12,7 @@ fork.
 The dated entries below are newest first. This overview groups them by area;
 each line links to its full entry.
 
-**At a glance (from Jim's version to this fork):** 42 entries, each change
+**At a glance (from Jim's version to this fork):** 43 entries, each change
 tested on a scratch copy before it was merged. Documents moved from JSON to
 Markdown. The server went from one 1,844-line file to 12 small files, and
 the page script from one 3,863-line file to nine. The fork adds 38 server
@@ -54,6 +54,7 @@ See exactly what is sent, control how it answers, and know what it costs.
 
 A calmer page with the numbers a writer wants.
 
+- [Help pages, and a Help button](#2026-10-22-help-pages-and-a-help-button): Eight help pages with screenshots, opened from the ? button in the top bar.
 - [Markdown preview toggle](#2026-10-22-markdown-preview-toggle): Preview the document as formatted text (⌘E).
 - [Sidebar toggle, zen mode, status bar, shortcuts, file reveal](#2026-10-22-sidebar-toggle-zen-mode-status-bar-shortcuts-file-reveal): Hide the sidebar, zen mode, a status bar, keyboard shortcuts, and the open file always visible in the sidebar.
 - [Dialogue percent in the status bar](#2026-10-22-dialogue-percent-in-the-status-bar): The share of words inside quotes, in the status bar.
@@ -95,6 +96,54 @@ Easier and safer to change.
 - [Housekeeping: tests, requirements, dead code, narrow windows](#2026-10-22-housekeeping-tests-requirements-dead-code-narrow-windows): 38 server tests, `requirements.txt`, dead code removed, and no sideways scroll in narrow windows.
 - [Server code split into small files](#2026-10-22-server-code-split-into-small-files): `app.py` (3,342 lines) is now a 44-line start file plus 11 small files in `app/sjb/`.
 - [Page script split into nine files, plus a browser smoke test](#2026-10-22-page-script-split-into-nine-files-plus-a-browser-smoke-test): `script.js` (5,842 lines) is now nine files in `app/static/js/`, with a browser smoke test.
+
+---
+
+## 2026-10-22: Help pages, and a Help button
+
+One commit (`dcf099e`). **Files:** `app/static/help/` (new),
+`app/templates/index.html`, `app/templates/_icons.html` (Lucide
+`circle-help`), `app/static/js/windows.js`, and `tests/browser/smoke.mjs`.
+
+**Why:** The app had no help. A new writer had to discover every feature by
+clicking around.
+
+**What:**
+
+- **Eight static pages** in `app/static/help/`. The app serves them itself,
+  so help works offline:
+  - **Start here:** what the app is, how to start it, the screen at a glance,
+    first steps, and keyboard shortcuts.
+  - **Writing:** opening, saving, the toolbar, preview, zen, and the status
+    bar.
+  - **Projects and the sidebar.**
+  - **Working with AI:** the panel, what the AI sees, the dock, markers,
+    settings, and cost.
+  - **Models and settings:** OpenRouter, Ollama, and Manage Models.
+  - **Keeping your work safe:** safe saves, Version history, the Trash, and
+    outside edits.
+  - **Your files:** Markdown, the Books folder, Obsidian, and export.
+  - **Look and layout.**
+- **Easy to move around:** each page has the contents list on the left, an
+  "On this page" list, and previous/next links. At phone width, the contents
+  list sits above the page.
+- **21 screenshots** in `app/static/help/assets/`. They show a made-up demo
+  book, *The Lighthouse Keeper*, so no real writing appears. Each one is
+  cropped to the part being explained. The overview has numbered markers
+  that match a numbered list.
+- **The same look as the app.** `help.css` copies the app's color and font
+  tokens. `help.js` asks the app (`/load`) for the saved mode and accent
+  color. Opened as a plain file, the pages follow the computer's light/dark
+  setting.
+- **A ? button in the top bar** opens help in a new tab, so the writing
+  stays put.
+
+**Checked:**
+- All pages load, with no errors.
+- All images load.
+- Every link inside help reaches a real page and section.
+- No sideways scroll at phone width.
+- The ? button opens help. The smoke test now checks this too.
 
 ---
 

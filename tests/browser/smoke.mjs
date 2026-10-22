@@ -145,6 +145,13 @@ try {
   await page.setViewportSize({ width: 390, height: 800 }); await page.waitForTimeout(400);
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "no sideways scroll at phone width");
 
+  // Help opens in its own tab
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const [helpTab] = await Promise.all([page.context().waitForEvent("page"), page.click("#helpBtn")]);
+  await helpTab.waitForLoadState();
+  ok(await helpTab.locator("h1").textContent() === "Welcome to SJB Writer", "? opens the help pages");
+  await helpTab.close();
+
   ok(browserPopups === 0, "no browser pop-ups");
   ok(errors.length === 0, "no page errors" + (errors.length ? `: ${errors.join(" | ")}` : ""));
 } catch (e) {
