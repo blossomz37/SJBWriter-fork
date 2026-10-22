@@ -9,6 +9,107 @@ fork.
 
 ---
 
+## 2026-10-22: Documents are Markdown files
+
+Three commits:
+- `9292266`: the code.
+- `8aac805`: the shipped starter files.
+- `657a2f7`: a separate fix for a crash on a fresh install.
+
+**Files:** `app/app.py`, `app/static/script.js`, `.gitignore`, plus the
+starter documents in `Global/prompts`, `Global/system`, and
+`Projects/sample-project`.
+
+**Why:** Every document was a JSON file (`{id, title, content, wordCount}`).
+That caused three problems:
+- Obsidian and other writing tools could not open the chapters.
+- Git diffs showed each chapter as one long line.
+- Moving your words out of the app was harder than it needs to be.
+
+Now each document is a plain `.md` file.
+
+**The file format:**
+
+- The file starts with a small header that holds the title, then a blank
+  line, then the text. Example: `---`, `title: "Chapter One"`, `---`, blank
+  line, text.
+- The title is written in JSON-string quoting, which is valid YAML, so
+  quotes and colons in titles are safe.
+- Other header lines that someone adds in another program, for example
+  Obsidian `tags:`, are kept when the app saves.
+- A `.md` file with no header also works. Its title is the file name.
+- One storage layer does all of this: `read_doc`, `write_doc`, `doc_stem`,
+  and `doc_name`. Every route that reads or writes a document now goes
+  through it: create, save, load, rename, duplicate, move to another
+  section, version history, restore, trash, and the AI request. Writes stay
+  atomic: a temp file, then a swap.
+
+**The one-time conversion:**
+
+- **When:** at the first request after the server starts.
+- **What it converts:** every JSON document in the four section folders,
+  in Global and in every project.
+- **For each document:**
+  - The app writes a `.md` file with the same title and text.
+  - The JSON file moves to a hidden `<section>/.json-backup/` folder. It is
+    never deleted.
+  - The sidebar lists and the "last opened" entries switch to the new names.
+- **What it leaves alone:** files that do not look like documents (no
+  `content` or `title`).
+- **Safe to repeat:** running it again does nothing.
+- **Older versions and trash:**
+  - Versions in Version history saved before the switch stay JSON. They
+    still list and restore. New versions are `.md`.
+  - Trash items from before the switch come back as `.md` when restored.
+- **Old ticks:** tick-box selections saved in the browser under the old
+  `.json` names carry over to the `.md` names.
+- **Pages still open from before:** a page opened before the switch still
+  sends `.json` names. The server maps them to `.md` for these keys:
+  `filename`, `target_filename`, the request lists, and sidebar order.
+  Without this, an unsaved edit in an old page would fail to save.
+
+**Working alongside Obsidian:**
+
+- **The folders are the truth.** On each full load, `.md` files added in
+  another program appear at the end of their section, and sidebar entries
+  whose file is gone drop out. As a bonus, this repairs sidebar lists that
+  had drifted from the folders.
+- **Outside edits are never overwritten silently.**
+  - The server remembers each document's modified time when the app opens
+    or saves it.
+  - If another program changed the file since then, the save first puts
+    that version into Version history, then saves. The page shows "This
+    document was also changed in another program. That version is kept in
+    Version history."
+  - A new route, `POST /file_status`, reports whether the open document
+    still exists and whether it changed outside.
+- **Coming back to the app:** when the window gets focus, the app refreshes
+  the sidebar. If the open document changed outside and has no unsaved
+  edits, it reloads ("Reloaded: …"). If it has unsaved edits, the app warns
+  instead and keeps the edits.
+
+**Repo changes:**
+- The 16 shipped starter documents are now `.md`, with the same titles and
+  text. The two tracked menu files point at the new names.
+- `.gitignore` ships the `.md` starters and ignores `.json-backup/`.
+
+**Separate fix: fresh install crash (`657a2f7`).** A fresh download has no
+saved app state, so it opens a `default` project. That project's folder did
+not exist yet, and `ensure_structure` wrote `project.json` into it first, so
+the very first page load failed with a server error. Jim's original version
+has the same problem. The fix creates the folder first.
+
+**How to check:**
+
+1. Start the app with older JSON data.
+2. Each section folder now holds `.md` files, plus a hidden `.json-backup`
+   folder.
+3. Open a document in Obsidian, change it, and come back to the app. The
+   document reloads.
+4. Add a new `.md` file in Obsidian. It appears in the sidebar.
+
+---
+
 ## 2026-10-22: Max reply length and a cost estimate
 
 One commit (`915c733`). **Files:** `app/app.py`, `app/static/script.js`,
