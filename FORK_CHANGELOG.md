@@ -9,6 +9,23 @@ fork.
 
 ---
 
+## 2026-10-22: Section contents indented under the section label
+
+**Commit:** `9c5a9b3`. **File:** `app/static/style.css`.
+
+- **Why:** a section's top-level folders and files started at the same left
+  edge as the section label, so the label did not read as their parent.
+- **How:**
+  - Each section's list (`#promptsList`, `#systemList`, `#backgroundList`,
+    `#writingList`) gets `padding-left: calc(var(--tree-indent) + 2px)`.
+  - The folder arrows then line up under the section name, right of the
+    section's own fold arrow. Measured: fold arrow at x = 14, section name at
+    x = 32, folder arrows at x = 31.
+  - **AI panel:** it went from 300 px to 320 px, so prompt names do not wrap
+    more than before. The toast offset was adjusted to match.
+
+---
+
 ## 2026-10-22: Documents indented clearly under their folders
 
 **Commit:** `a1d04f1`. **Files:** `app/static/script.js`, `app/static/style.css`.
