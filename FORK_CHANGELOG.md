@@ -9,6 +9,55 @@ fork.
 
 ---
 
+## 2026-10-22: AI output marker settings, and a marker placement fix
+
+**Commit:** `c90d290`. **Files:** `app/templates/index.html`,
+`app/static/script.js`, `app/static/style.css`. No server changes: the existing
+`/save_app_state` route stores the new keys.
+
+### 1. Markers can be turned off or reworded
+
+- **Why:** every generation inserted
+  `********` / `New generated content below` / `********` before the AI text,
+  and a matching "End of generated content above" block when the AI wrote into
+  the start or middle of the text. Some writers find this breaks their flow.
+- **How:**
+  - A new **AI Output Markers** section in the main Settings view has a
+    checkbox ("Mark where AI text begins and ends") and two small text boxes,
+    **Before AI text** and **After AI text**. Both boxes start with the
+    original marker text.
+  - The values are saved to `app_state.json` as `showOutputMarkers`,
+    `outputMarkerBefore`, and `outputMarkerAfter`. If a key is missing, the
+    original behavior applies: markers on, with the original text. Existing
+    users therefore see no change until they edit the setting.
+  - An empty box skips that marker.
+  - With markers off, the AI text is still set off by a blank line (a new
+    paragraph), as before. Only the marker lines disappear.
+  - The old `formatOutput()` was replaced by `getOutputWrappers(mode)`. It
+    returns the text to put before and after the AI output for each cursor
+    position: empty document, start, end, or middle.
+
+### 2. Bug fix: AI text landed after the closing marker
+
+- **Problem:** at the start or in the middle of a document, the app inserted
+  the whole wrapper first: opening marker, blank, closing marker. It then
+  moved the insertion point past all of it. The AI text therefore streamed in
+  *after* "End of generated content above", not between the markers. At the
+  end of a document there is no closing marker, so that common case was not
+  affected.
+- **How:**
+  - The opening text is inserted and the insertion point moves past it.
+  - The closing text is inserted *after* the insertion point, without moving
+    it.
+  - Streamed chunks then land between the two markers.
+
+**Check:** with a model selected, put the cursor in the middle of a paragraph
+and generate. The AI text should sit between the two markers. Then uncheck the
+setting, save, and generate at the end of the text. Only a blank line should
+separate the AI text from yours.
+
+---
+
 ## 2026-10-22: Sidebar toggle, zen mode, status bar, shortcuts, file reveal
 
 **Commit:** `99ed60b`. **Files:** `app/templates/index.html`,

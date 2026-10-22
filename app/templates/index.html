@@ -279,6 +279,23 @@
           <input id="apiKey" type="password" placeholder="sk-..." />
           <div id="apiKeyStatus" class="settings-note"></div>
         </div>
+
+        <!-- AI output markers section -->
+        <div class="settings-section">
+          <h2>AI Output Markers</h2>
+          <label class="settings-checkbox">
+            <input type="checkbox" id="showOutputMarkers" />
+            Mark where AI text begins and ends
+          </label>
+          <label for="outputMarkerBefore">Before AI text</label>
+          <textarea id="outputMarkerBefore" rows="3"></textarea>
+          <label for="outputMarkerAfter">After AI text</label>
+          <textarea id="outputMarkerAfter" rows="3"></textarea>
+          <div class="settings-note">
+            "After" shows only when the AI writes at the start or middle of your text.
+            Leave a box empty to skip that marker.
+          </div>
+        </div>
       </div>
 
       <div class="modal-actions">

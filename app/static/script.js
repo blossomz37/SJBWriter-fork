@@ -1585,18 +1585,30 @@ function getInsertMode() {
   return "middle";
 }
 
-function formatOutput(content, mode) {
-  if (mode === "empty") return content;
+const DEFAULT_MARKER_BEFORE = "********\nNew generated content below\n********";
+const DEFAULT_MARKER_AFTER = "********\nEnd of generated content above\n********";
 
-  if (mode === "start") {
-    return `${content}\n\n********\nEnd of generated content above\n********\n\n`;
-  }
+// Marker text from Settings; empty strings when markers are turned off
+function getOutputMarkers() {
+  const appState = state.app_state || {};
+  if (appState.showOutputMarkers === false) return { before: "", after: "" };
+  return {
+    before: appState.outputMarkerBefore ?? DEFAULT_MARKER_BEFORE,
+    after: appState.outputMarkerAfter ?? DEFAULT_MARKER_AFTER
+  };
+}
 
-  if (mode === "end") {
-    return `\n\n********\nNew generated content below\n********\n\n${content}`;
-  }
+// Text placed before and after the AI output, by where the cursor was.
+// Markers sit in their own paragraph; with markers off, only the paragraph breaks remain.
+function getOutputWrappers(mode) {
+  const { before, after } = getOutputMarkers();
+  const open = before ? `${before}\n\n` : "";
+  const close = after ? `\n\n${after}` : "";
 
-  return `\n\n********\nNew generated content below\n********\n\n${content}\n\n********\nEnd of generated content above\n********\n\n`;
+  if (mode === "empty") return { before: "", after: "" };
+  if (mode === "start") return { before: "", after: `${close}\n\n` };
+  if (mode === "end") return { before: `\n\n${open}`, after: "" };
+  return { before: `\n\n${open}`, after: `${close}\n\n` };
 }
 
 function insertAtCursor(text) {
@@ -1710,7 +1722,13 @@ updateUndoButton();
         const chunk = decoder.decode(value);
         // Add separators only once
         if (!started) {
-          insertAtGenerationPoint(formatOutput("", mode));
+          const wrap = getOutputWrappers(mode);
+          insertAtGenerationPoint(wrap.before);
+          // Closing text goes after the cursor, so the AI text streams in between
+          editor.value =
+            editor.value.substring(0, generationCursorPos) +
+            wrap.after +
+            editor.value.substring(generationCursorPos);
           started = true;
         }
         insertAtGenerationPoint(chunk);
@@ -3829,6 +3847,19 @@ async function saveSettings() {
       body: JSON.stringify({ apiKey: apiKey })
     });
   }
+
+  const markers = {
+    showOutputMarkers: document.getElementById("showOutputMarkers").checked,
+    outputMarkerBefore: document.getElementById("outputMarkerBefore").value,
+    outputMarkerAfter: document.getElementById("outputMarkerAfter").value
+  };
+  Object.assign(state.app_state, markers);
+  await fetch('/save_app_state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(markers)
+  });
+
   updateActiveModelDisplay();
   await updateTokenMeter();
   closeSettings();
@@ -3905,6 +3936,12 @@ function loadSettingsIntoUI() {
     state.app_state.theme || "light";
   document.getElementById("sidebarFontSize").value =
     state.app_state.sidebarFontSize || "13px";
+  document.getElementById("showOutputMarkers").checked =
+    state.app_state.showOutputMarkers !== false;
+  document.getElementById("outputMarkerBefore").value =
+    state.app_state.outputMarkerBefore ?? DEFAULT_MARKER_BEFORE;
+  document.getElementById("outputMarkerAfter").value =
+    state.app_state.outputMarkerAfter ?? DEFAULT_MARKER_AFTER;
 }
 
 function loadVisualSettingsIntoUI() {
