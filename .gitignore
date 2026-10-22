@@ -19,3 +19,6 @@ Projects/sample-project/.DS_Store
 Global/ollama_order.json
 
 workspace-agents/
+
+# Personal app settings (font, theme, recent projects); the app recreates it
+Global/app_state.json
