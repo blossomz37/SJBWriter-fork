@@ -9,6 +9,43 @@ fork.
 
 ---
 
+## 2026-10-22: Close the document; the logo goes home
+
+**Commit:** `cd8dac0`. **Files:** `app/templates/index.html`,
+`app/static/script.js`, `app/static/style.css`.
+
+- **Why:** the empty state only appeared in projects with no files. The app
+  always reopened the last file, or the first writing file, so there was no
+  way to choose a clean start screen.
+- **How:**
+  - **Close button:** a × at the right end of the document title row calls the
+    new `closeDocument()`.
+  - **Logo:** the logo and version in the top bar are now one plain button,
+    tooltip "Home". It does the same thing, following the usual "logo = home"
+    pattern.
+  - **What `closeDocument()` does:**
+    - It saves unsaved changes first.
+    - It refuses while a generation is running, with a notice.
+    - It clears the current file, title, and editor, then re-renders.
+    - It sets `sjb_doc_closed_<project>` in `localStorage`.
+  - **On startup,** `loadAll()` checks that flag before its usual restore
+    chain (last file, project's last file, first writing file). If it is set,
+    the empty state stays. The flag is per project, so closing a document in
+    one project does not empty the others.
+  - Opening any file clears the flag in `openFile()`.
+  - Zen mode hides the × button.
+- **Note:** ⌘W was not used. Browsers reserve it for closing the tab, and a page
+  cannot override it.
+
+**Check:**
+
+1. Open a file, type something, and click ×. The empty state should show, and
+   the edit should be saved.
+2. Reload. The empty state should stay.
+3. Click a file to open it, then click the logo. The empty state should return.
+
+---
+
 ## 2026-10-22: Empty state when no document is open
 
 **Commit:** `a2aa0a2`. **Files:** `app/templates/index.html`,
