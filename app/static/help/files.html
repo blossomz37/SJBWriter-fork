@@ -36,6 +36,7 @@
     <li><a href="#markdown">Documents are Markdown files</a></li>
     <li><a href="#folder">Where your books live</a></li>
     <li><a href="#obsidian">Working with Obsidian</a></li>
+    <li><a href="#import">Import</a></li>
     <li><a href="#export">Export</a></li>
   </ul>
 </nav>
@@ -66,6 +67,24 @@ Projects/&lt;project&gt;/writing/      the book</code></pre>
 
 <h2 id="obsidian">Working with Obsidian</h2>
 <p>Choose a books folder inside your Obsidian vault. Then both programs work on the same files: write in either one, and the other one sees the changes. See <a href="safety.html#outside">Editing in another program</a>.</p>
+
+<h2 id="import">Import</h2>
+<p>Bring in work from other programs: open the project <kbd>⋯</kbd> menu → <strong>Import…</strong></p>
+<figure class="small">
+  <img src="assets/import.png" alt="The Import window, showing four documents found and two files skipped" loading="lazy">
+</figure>
+<ol>
+<li>Click <strong>Choose files…</strong> for single documents, or <strong>Choose a folder…</strong> for a whole folder with its subfolders.</li>
+<li>Check the list. It shows each document's title and word count, and any file it will skip, with the reason. Nothing has been added yet.</li>
+<li>Choose where it goes: <strong>this project</strong> or <strong>a new project</strong> (named after the folder), and <strong>Writing</strong> or <strong>Background</strong>.</li>
+<li>Click <strong>Import</strong>.</li>
+</ol>
+<ul>
+<li><strong>Markdown</strong> files keep their title and header lines. <strong>Text</strong> files take their title from the file name.</li>
+<li><strong>Word (.docx)</strong> files keep headings, bold, italic, lists, quotes, and scene breaks. Their title is the document title set in Word, or the file name. Old <code>.doc</code> files are skipped: open them in Word and save them as <code>.docx</code> first.</li>
+<li>Subfolders become sidebar folders, and documents come in name order, so Chapter 2 comes before Chapter 10.</li>
+<li>Your original files are never changed, and nothing in the project is overwritten: a document whose name is taken gets a number.</li>
+</ul>
 
 <h2 id="export">Export</h2>
 <p><strong>One document:</strong> hover over it in the sidebar and choose <kbd>⋯</kbd> → <strong>Export as Markdown</strong> or <strong>Export as Word</strong>.</p>

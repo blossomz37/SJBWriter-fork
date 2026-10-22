@@ -169,6 +169,10 @@ function toggleProjectMenu(e) {
   trashItem.textContent = "Trash…";
   trashItem.onclick = () => openTrash();
 
+  const importItem = document.createElement("div");
+  importItem.textContent = "Import…";
+  importItem.onclick = () => openImport();
+
   const exportItem = document.createElement("div");
   exportItem.textContent = "Export manuscript…";
   exportItem.onclick = () => openExport();
@@ -177,6 +181,7 @@ function toggleProjectMenu(e) {
   menu.appendChild(rename);
   menu.appendChild(duplicateProjectItem);
   menu.appendChild(del);
+  menu.appendChild(importItem);
   menu.appendChild(exportItem);
   menu.appendChild(trashItem);
 
@@ -623,6 +628,136 @@ async function duplicateProject() {
   await loadProjects();
   showToast(`Duplicated as "${data.title}". Find it in the project menu.`, "info");
 }
+
+// =====================
+// IMPORT: documents or a whole folder (Markdown, text, Word), preview first
+// =====================
+
+let importSelection = [];   // [{ file, path }] in the order chosen
+
+function openImport() {
+  importSelection = [];
+  for (const id of ["importFiles", "importFolder"]) document.getElementById(id).value = "";
+  document.getElementById("importPreview").classList.add("hidden");
+  const run = document.getElementById("importRun");
+  run.disabled = true;
+  run.textContent = "Import";
+  // Always start on "this project": a new project should never be made by accident
+  document.querySelector('input[name="importDest"][value="project"]').checked = true;
+  const project = (projects || []).find(p => p.id === currentProject);
+  document.getElementById("importThisProject").textContent = `This project (“${project?.title || currentProject}”)`;
+  document.getElementById("importModal").classList.remove("hidden");
+}
+
+function pickImport(kind) {
+  document.getElementById(kind === "folder" ? "importFolder" : "importFiles").click();
+}
+
+for (const id of ["importFiles", "importFolder"]) {
+  document.getElementById(id).addEventListener("change", (e) => {
+    // A folder gives each file its path inside the folder; single files just their name
+    importSelection = [...e.target.files].map(file => ({ file, path: file.webkitRelativePath || file.name }));
+    if (importSelection.length) previewImport();
+  });
+}
+
+function importForm() {
+  const form = new FormData();
+  for (const { file, path } of importSelection) {
+    form.append("files", file);
+    form.append("paths", path);
+  }
+  return form;
+}
+
+async function previewImport() {
+  const run = document.getElementById("importRun");
+  run.disabled = true;
+  run.textContent = "Reading…";
+  let data;
+  try {
+    const res = await fetch('/import/preview', { method: 'POST', body: importForm() });
+    data = await res.json();
+  } catch (e) {
+    showToast("Could not read those files.");
+    run.textContent = "Import";
+    return;
+  }
+
+  const count = n => `${n} document${n === 1 ? "" : "s"}`;
+  const parts = [count(data.items.length)];
+  if (data.folders) parts.push(`${data.folders} folder${data.folders === 1 ? "" : "s"}`);
+  if (data.skipped.length) parts.push(`${data.skipped.length} skipped`);
+  document.getElementById("importSummary").textContent = `Found ${parts.join(", ")}.`;
+
+  const list = document.getElementById("importList");
+  list.innerHTML = "";
+  const row = (icon, title, meta, skipped) => {
+    const el = document.createElement("div");
+    el.className = "import-row" + (skipped ? " is-skipped" : "");
+    const iconEl = document.createElement("span");
+    iconEl.className = "tree-icon";
+    iconEl.innerHTML = iconSvg(icon);
+    const text = document.createElement("div");
+    text.className = "trash-text";
+    const t = document.createElement("span");
+    t.className = "trash-title";
+    t.textContent = title;
+    const m = document.createElement("span");
+    m.className = "history-meta";
+    m.textContent = meta;
+    text.append(t, m);
+    el.append(iconEl, text);
+    list.appendChild(el);
+  };
+  for (const item of data.items) {
+    row("file-text", item.title, [item.path, item.kind, `${item.words.toLocaleString()} words`].join(" · "), false);
+  }
+  for (const item of data.skipped) {
+    row("x", item.path, `Skipped: ${item.reason}`, true);
+  }
+
+  document.getElementById("importProjectName").value = data.suggestedProject;
+  document.getElementById("importKeepRow").classList.toggle("hidden", !data.folders && !data.root);
+  document.getElementById("importPreview").classList.remove("hidden");
+  run.textContent = data.items.length ? `Import ${count(data.items.length)}` : "Import";
+  run.disabled = !data.items.length;
+}
+
+async function runImport(button) {
+  const form = importForm();
+  const destination = document.querySelector('input[name="importDest"]:checked').value;
+  form.set("destination", destination);
+  form.set("projectName", document.getElementById("importProjectName").value.trim());
+  form.set("section", document.querySelector('input[name="importSection"]:checked').value);
+  form.set("keepFolders", document.getElementById("importKeep").checked ? "1" : "0");
+
+  if (isDirty) await saveCurrentFile();
+  button.disabled = true;
+  try {
+    const res = await fetch('/import', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) {
+      showToast(data.error || "Import failed");
+      return;
+    }
+    closeImport();
+    if (data.project) {
+      await loadProjects();   // the new project is now the open one
+      loadSelections();
+    }
+    await loadAll();
+    const where = data.section === "writing" ? "Writing" : "Background";
+    showToast(`Imported ${data.documents} document${data.documents === 1 ? "" : "s"} into ${where}.`, "info");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function closeImport() {
+  document.getElementById("importModal").classList.add("hidden");
+}
+
 
 // =====================
 // EXPORT: one document, or the Writing section as one manuscript

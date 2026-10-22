@@ -1633,6 +1633,60 @@ body.zen .zen-exit {
   filter: brightness(1.08);
 }
 
+/* ===================== IMPORT ===================== */
+.import-content {
+  width: min(620px, 94vw);
+  height: auto;
+}
+
+.import-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.import-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.import-summary {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.import-list {
+  max-height: 38vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.import-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+}
+
+.import-row + .import-row {
+  border-top: 1px solid var(--border);
+}
+
+.import-row.is-skipped {
+  opacity: 0.6;
+}
+
+.import-new input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 8px;
+  font-size: 14px;
+}
+
 /* ===================== EXPORT MANUSCRIPT ===================== */
 .export-content {
   width: min(480px, 94vw);

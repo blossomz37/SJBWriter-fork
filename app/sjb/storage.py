@@ -132,10 +132,11 @@ def read_doc(path):
     return {"id": stem, "title": title or stem, "content": content, "wordCount": count_words(content)}
 
 
-def write_doc(path, title, content):
-    """Write a Markdown document. Other header lines (tags added in Obsidian) are kept."""
-    extra = []
-    if os.path.exists(path):
+def write_doc(path, title, content, extra_header=None):
+    """Write a Markdown document. Other header lines (tags added in Obsidian) are kept;
+    extra_header gives them for a new file (an imported one)."""
+    extra = list(extra_header or [])
+    if extra_header is None and os.path.exists(path):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 lines, _ = split_front_matter(f.read())
