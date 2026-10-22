@@ -9,6 +9,47 @@ fork.
 
 ---
 
+## 2026-10-22: Word counts without `(?)`, and a clearer token meter
+
+**Commit:** `0f77014`. **Files:** `app/app.py`, `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`.
+
+### 1. No more `(?)` in the sidebar
+
+- **Problem:** a file's word count lived only in `state.json`, and was written
+  only by `/save_file`. Shipped files (the EPBM prompts, starter system rules)
+  and files never edited in the app had none, so they showed `(?)`. A folder
+  showed `(?)` as soon as one of its files was unknown.
+- **How:**
+  - `/load` now runs the new `add_word_counts()` over all four sections. It
+    reads each file and sets `wordCount` from its content. The counts are
+    always current, even for files edited outside the app.
+  - `/create_item` and `/create_item_in_folder` store `wordCount: 0` for new
+    files.
+
+### 2. Token meter: same numbers, clearer meaning
+
+- **Finding:** the meter was accurate. Tested against a real request, it
+  matched to the token: 3,119 characters ÷ 4 = 779, and the meter said 779.
+  But it sat next to the open document's word count, so "113 words · 779
+  tokens" looked like a contradiction. In fact, the tokens cover the *whole
+  request*: checked rules, notes, and chapters, plus the document and the
+  instruction.
+- **How:**
+  - The meter now reads **"AI request ≈ 779 / 131k tokens"**.
+  - Hovering shows where the tokens come from, for example "Rules 23 · This
+    document 28 · Instruction 55". Only non-empty parts are listed.
+  - `updateTokenMeter()` now builds the same parts, in the same order, as
+    `generate()`. It counts only checked files that still exist in the tree,
+    through `collectFilenames()`. Before, a checked file that had been deleted
+    still added a separator to the estimate.
+  - To let the tooltip show above it, the status bar no longer clips its
+    contents. Only the left side (project › file) still truncates.
+- **Unchanged:** the estimate itself is still characters ÷ 4, the common rule
+  of thumb. Real tokenizers differ by model, roughly ±20 %.
+
+---
+
 ## 2026-10-22: Section contents indented under the section label
 
 **Commit:** `9c5a9b3`. **File:** `app/static/style.css`.
