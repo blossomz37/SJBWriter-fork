@@ -719,6 +719,14 @@ async function renderModelsManager() {
     info.appendChild(title);
     info.appendChild(meta);
 
+    const availability = openrouterAvailability(model);
+    if (availability) {
+      const flag = document.createElement("span");
+      flag.className = `model-flag model-flag-${availability.kind}`;
+      flag.textContent = availability.text;
+      info.appendChild(flag);
+    }
+
     if (model.labels?.length) {
 
       const labels =
@@ -1240,7 +1248,9 @@ function renderModelDropdown() {
       for (const model of items) {
         const option = document.createElement("option");
         option.value = model.id;
-        option.textContent = model.name || model.id;
+        const availability = openrouterAvailability(model);
+        option.textContent = (model.name || model.id) +
+          (availability ? ` (${availability.kind === "gone" ? "removed from OpenRouter" : `leaves ${formatShortDate(openrouterCatalog.models[model.id].expires)}`})` : "");
         group.appendChild(option);
       }
 
@@ -1285,6 +1295,7 @@ function setActiveModel(modelId) {
 
   updateActiveModelDisplay();
   updateTokenMeter();
+  updateReasoningNote();
 }
 
 function updateActiveModelDisplay() {
@@ -1824,7 +1835,7 @@ updateUndoButton();
       background: backgroundFiles,
       writing: [...writingFiles, editor.value],
       prompt: promptBox.value,
-      settings: settings
+      settings: { ...settings, ...generationSettings() }
     };
 
     const res = await fetch('/generate', {
@@ -4385,6 +4396,176 @@ function openOverflowMenu(button, name) {
 
 
 // =====================
+// OPENROUTER MODEL CHECK (Manage Models → Check OpenRouter)
+// =====================
+
+let openrouterCatalog = null;   // { checked_at, models: { id: { expires, reasoning, ... } } }
+
+async function loadOpenRouterCatalog() {
+  try {
+    const data = await (await fetch('/openrouter_catalog')).json();
+    openrouterCatalog = data.models ? data : null;
+  } catch (e) {
+    openrouterCatalog = null;
+  }
+}
+
+function formatShortDate(isoDate) {
+  return new Date(`${isoDate}T00:00:00`).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+// "Removed" or "Leaves Oct 31" for an OpenRouter model, from the last check
+function openrouterAvailability(model) {
+  if (!openrouterCatalog || (model.source || "openrouter") !== "openrouter") return null;
+  const info = openrouterCatalog.models[model.id];
+  if (!info) return { kind: "gone", text: "Removed from OpenRouter" };
+  if (info.expires) return { kind: "leaving", text: `Leaves ${formatShortDate(info.expires)}` };
+  return null;
+}
+
+async function checkOpenRouterModels(button) {
+  button.disabled = true;
+  const label = button.textContent;
+  button.textContent = "Checking…";
+
+  try {
+    const res = await fetch('/check_openrouter_models', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      showToast(data.error || "Could not check OpenRouter");
+      return;
+    }
+    await loadOpenRouterCatalog();
+    showModelCheckSummary(data);
+    renderModelDropdown();
+    await renderModelsManager();
+    updateReasoningNote();
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
+  }
+}
+
+function showModelCheckSummary(data) {
+  const box = document.getElementById("modelCheckSummary");
+  box.innerHTML = "";
+  box.classList.remove("hidden");
+
+  const gone = data.models.filter(m => m.status === "gone");
+  const leaving = data.models.filter(m => m.status === "leaving");
+  const time = new Date(data.checked_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+  const line = (text, kind) => {
+    const p = document.createElement("p");
+    if (kind) p.className = `model-check-${kind}`;
+    p.textContent = text;
+    box.appendChild(p);
+  };
+
+  line(`Checked at ${time}: ${data.total.toLocaleString()} models on OpenRouter.`);
+  if (gone.length) {
+    line(`No longer on OpenRouter (${gone.length}): ${gone.map(m => m.name).join(", ")}.`, "gone");
+  }
+  if (leaving.length) {
+    line(`Leaving soon: ${leaving.map(m => `${m.name} (${formatShortDate(m.expires)})`).join(", ")}.`, "leaving");
+  }
+  if (!gone.length && !leaving.length) {
+    line("All your OpenRouter models are available.", "ok");
+  }
+}
+
+
+// =====================
+// GENERATION SETTINGS (temperature, reasoning; in the AI setup panel)
+// =====================
+
+const DEFAULT_TEMPERATURE = 0.7;
+let generationSaveTimer = null;
+
+// Sent with every generation; "default" reasoning sends nothing, so each model uses its own
+function generationSettings() {
+  const appState = state.app_state || {};
+  const temperature = appState.temperature ?? DEFAULT_TEMPERATURE;
+  const reasoning = appState.reasoningEffort || "default";
+  return {
+    temperature,
+    reasoning: reasoning === "default" ? null : reasoning
+  };
+}
+
+function showTemperature(value) {
+  document.getElementById("temperatureValue").textContent = Number(value).toFixed(1);
+}
+
+function saveGenerationSettings() {
+  const temperature = Number(document.getElementById("temperatureInput").value);
+  const reasoningEffort = document.getElementById("reasoningSelect").value;
+  Object.assign(state.app_state, { temperature, reasoningEffort });
+  clearTimeout(generationSaveTimer);
+  generationSaveTimer = setTimeout(() => fetch('/save_app_state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ temperature, reasoningEffort })
+  }), 300);
+}
+
+function resetTemperature() {
+  document.getElementById("temperatureInput").value = DEFAULT_TEMPERATURE;
+  showTemperature(DEFAULT_TEMPERATURE);
+  saveGenerationSettings();
+}
+
+// What the selected model does with the Reasoning setting
+function updateReasoningNote() {
+  const note = document.getElementById("reasoningNote");
+  if (!note) return;
+  const model = getModelById(settings.modelName);
+
+  if (model?.source === "ollama") {
+    note.textContent = "Ollama: Off turns thinking off; any level turns it on. Models that cannot think may refuse.";
+    return;
+  }
+  const info = model && openrouterCatalog?.models[model.id];
+  if (model && openrouterCatalog && !info) {
+    note.textContent = "This model is no longer on OpenRouter. Pick another in the model list.";
+    return;
+  }
+  if (!info) {
+    note.textContent = openrouterCatalog
+      ? "Models that cannot reason ignore this."
+      : "Models that cannot reason ignore this. Check OpenRouter in Manage Models to see what each model supports.";
+    return;
+  }
+  const r = info.reasoning;
+  if (!r || (!r.supported_efforts && !r.mandatory)) {
+    note.textContent = "This model does not reason, so this setting is ignored.";
+  } else if (r.mandatory) {
+    note.textContent = `This model always reasons${r.default_effort ? ` (default: ${r.default_effort})` : ""}, so Off has no effect.`;
+  } else {
+    note.textContent = `This model supports: ${r.supported_efforts.join(", ")}${r.default_effort ? ` (default: ${r.default_effort})` : ""}.`;
+  }
+}
+
+function initGenerationPanel() {
+  const slider = document.getElementById("temperatureInput");
+  const reasoning = document.getElementById("reasoningSelect");
+  const details = document.getElementById("aiGeneration");
+
+  slider.value = state.app_state.temperature ?? DEFAULT_TEMPERATURE;
+  reasoning.value = state.app_state.reasoningEffort || "default";
+  showTemperature(slider.value);
+  details.open = readPref("sjb_generation_open", true);
+
+  slider.addEventListener("input", () => {
+    showTemperature(slider.value);
+    saveGenerationSettings();
+  });
+  reasoning.addEventListener("change", saveGenerationSettings);
+  details.addEventListener("toggle", () => writePref("sjb_generation_open", details.open));
+}
+
+
+// =====================
 // AI OUTPUT MARKERS (in the AI setup panel; saved as you type)
 // =====================
 
@@ -5030,7 +5211,12 @@ window.onload = async () => {
 
   setAiPanelOpen(readPref("sjb_ai_panel_open", false));
   initPanelResize();
+  initGenerationPanel();
   initMarkersPanel();
+  loadOpenRouterCatalog().then(() => {
+    renderModelDropdown();
+    updateReasoningNote();
+  });
   applySectionOrder();
   applySectionFolds();
   updateSortButtons();

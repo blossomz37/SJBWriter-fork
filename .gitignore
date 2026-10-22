@@ -35,3 +35,6 @@ Global/prompts/*
 Global/system/*
 !Global/system/always-on-instructions-from-cv-to-be-edited.json
 !Global/system/em-dashes.json
+
+# Cached copy of OpenRouter's model list (refreshed from Manage Models)
+Global/openrouter_models.json

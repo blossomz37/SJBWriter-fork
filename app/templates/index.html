@@ -215,6 +215,35 @@
     </div>
   </div>
 
+  <!-- Generation settings: saved as you change them -->
+  <details id="aiGeneration" class="ai-markers ai-generation">
+    <summary>
+      <svg class="icon fold-icon" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+      <span>Generation</span>
+    </summary>
+    <div class="ai-markers-body">
+      <div class="generation-row">
+        <label for="temperatureInput">Temperature</label>
+        <span class="generation-value">
+          <span id="temperatureValue">0.7</span>
+          <button type="button" class="link-btn" onclick="resetTemperature()" title="Reset to 0.7">Reset</button>
+        </span>
+      </div>
+      <input type="range" id="temperatureInput" min="0" max="2" step="0.1" value="0.7" />
+      <div class="generation-scale"><span>Focused</span><span>Varied</span></div>
+
+      <label for="reasoningSelect">Reasoning</label>
+      <select id="reasoningSelect">
+        <option value="default">Model default</option>
+        <option value="none">Off</option>
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+      </select>
+      <p class="ai-markers-note" id="reasoningNote">Models that cannot reason ignore this.</p>
+    </div>
+  </details>
+
   <!-- AI output markers: saved as you type -->
   <details id="aiMarkers" class="ai-markers">
     <summary>
@@ -440,7 +469,14 @@
           + Add Model
         </button>
 
+        <button type="button" onclick="checkOpenRouterModels(this)" title="Compare your models with OpenRouter's current list">
+          Check OpenRouter
+        </button>
+
       </div>
+
+      <!-- Result of the last OpenRouter check -->
+      <div id="modelCheckSummary" class="model-check hidden"></div>
 
       <div id="modelLabelFilters"></div>
       <input

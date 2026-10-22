@@ -477,6 +477,19 @@ def save_model_list(data):
 
 
 # ===================== AI CLIENT =====================
+REASONING_EFFORTS = {"none", "minimal", "low", "medium", "high", "xhigh", "max"}
+
+
+def generation_options(settings):
+    """Temperature (0-2) and reasoning effort from the client; None means "model default"."""
+    temperature = settings.get("temperature")
+    try:
+        temperature = None if temperature is None else min(2.0, max(0.0, float(temperature)))
+    except (TypeError, ValueError):
+        temperature = None
+    effort = settings.get("reasoning")
+    return temperature, (effort if effort in REASONING_EFFORTS else None)
+
 def call_openrouter(prompt, settings):
     def get_api_key():
         config_path = os.path.join(GLOBAL_DIR, "config.json")
@@ -516,6 +529,13 @@ def call_openrouter(prompt, settings):
         ],
         "stream": True
     }
+
+    # OpenRouter maps one reasoning setting onto each model family's own controls
+    temperature, effort = generation_options(settings)
+    if temperature is not None:
+        data["temperature"] = temperature
+    if effort:
+        data["reasoning"] = {"effort": effort}
 
 
     try:
@@ -594,6 +614,13 @@ def call_ollama(prompt, settings):
         "prompt": prompt,
         "stream": True
     }
+
+    # Ollama: temperature goes in options; "think" turns reasoning on or off
+    temperature, effort = generation_options(settings)
+    if temperature is not None:
+        data["options"] = {"temperature": temperature}
+    if effort:
+        data["think"] = effort != "none"
 
     try:
 
@@ -731,19 +758,19 @@ def api_generate():
     model_source = client_settings.get("modelSource", "openrouter")
     model_name = client_settings.get("modelName")
 
+    model_settings = {
+        "modelName": model_name,
+        "temperature": client_settings.get("temperature"),
+        "reasoning": client_settings.get("reasoning")
+    }
+
     if model_source == "openrouter":
 
-        result = call_openrouter(
-            prompt,
-            {"modelName": model_name}
-        )
+        result = call_openrouter(prompt, model_settings)
 
     elif model_source == "ollama":
 
-        result = call_ollama(
-            prompt,
-            {"modelName": model_name}
-        )
+        result = call_ollama(prompt, model_settings)
 
     else:
 
@@ -2001,6 +2028,52 @@ def api_delete_folder():
     return jsonify({
         "status": "deleted"
     })
+
+
+# ----- OPENROUTER MODEL CHECK -----
+OPENROUTER_CATALOG = os.path.join(GLOBAL_DIR, "openrouter_models.json")
+
+
+@app.route('/check_openrouter_models', methods=['POST'])
+def api_check_openrouter_models():
+    """Fetch OpenRouter's live model list, keep a compact copy, and report on the user's models."""
+    try:
+        response = requests.get("https://openrouter.ai/api/v1/models", timeout=20)
+        response.raise_for_status()
+        live = response.json().get("data", [])
+    except Exception as e:
+        return jsonify({"error": f"Could not reach OpenRouter: {e}"}), 502
+
+    catalog = {
+        m["id"]: {
+            "name": m.get("name"),
+            "context": m.get("context_length"),
+            "expires": m.get("expiration_date"),
+            "reasoning": m.get("reasoning"),
+            "temperature": "temperature" in (m.get("supported_parameters") or [])
+        }
+        for m in live if m.get("id")
+    }
+    checked_at = datetime.now().isoformat(timespec="seconds")
+    save_json(OPENROUTER_CATALOG, {"checked_at": checked_at, "models": catalog})
+
+    report = []
+    for model in (load_model_list() or {}).get("openrouter", []):
+        info = catalog.get(model.get("id"))
+        report.append({
+            "id": model.get("id"),
+            "name": model.get("name") or model.get("id"),
+            "status": "gone" if not info else ("leaving" if info.get("expires") else "available"),
+            "expires": info.get("expires") if info else None
+        })
+
+    return jsonify({"checked_at": checked_at, "total": len(catalog), "models": report})
+
+
+@app.route('/openrouter_catalog', methods=['GET'])
+def api_openrouter_catalog():
+    """The last check's copy of OpenRouter's model list (empty before the first check)."""
+    return jsonify(load_json(OPENROUTER_CATALOG) or {})
 
 
 # ----- MOVE A FILE TO ANOTHER SECTION -----
