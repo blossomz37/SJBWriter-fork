@@ -1620,7 +1620,7 @@ function toggleProjectDropdown(e) {
   }
 
   if (alphabetical.length > 0) {
-    addHeader("ALPHA");
+    addHeader(recent.length > 0 ? "OTHER PROJECTS" : "PROJECTS");
     alphabetical.forEach(addProject);
   }
 
@@ -2357,17 +2357,17 @@ function renderProjectList(data) {
       container.appendChild(createProjectRow(project));
     }
 
-    // Divider between Recent and Alpha
+    // Divider between Recent and the other projects
     const divider = document.createElement("div");
     divider.classList.add("project-section-divider");
     container.appendChild(divider);
   }
 
-  // ---------- ALPHA ----------
+  // ---------- OTHER PROJECTS (A–Z) ----------
   if (remaining.length > 0) {
     const allHeader = document.createElement("div");
     allHeader.classList.add("project-header");
-    allHeader.textContent = "ALPHA";
+    allHeader.textContent = recentProjects.length > 0 ? "OTHER PROJECTS" : "PROJECTS";
     container.appendChild(allHeader);
 
     for (const project of remaining) {
