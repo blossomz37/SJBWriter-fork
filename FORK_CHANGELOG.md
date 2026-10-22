@@ -9,6 +9,23 @@ fork.
 
 ---
 
+## 2026-10-22: Project header shows just the name
+
+**Commit:** `8053260`. **Files:** `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`.
+
+- **Why:** with the book icon in front of it, "Project: " repeated what the
+  icon already says.
+- **How:**
+  - `#currentProjectLabel` is set to the project title alone. The template
+    default changed from "Project: Default" to "Default".
+  - The header has a **"Switch project"** tooltip (`data-tip`, anchored with
+    `position: relative`), so its purpose is still clear.
+  - `updateStatusBar()` no longer strips a `Project:` prefix. It reads the
+    label as is.
+
+---
+
 ## 2026-10-22: Dialogue percent in the status bar
 
 **Commit:** `adfa338`. **Files:** `app/static/script.js`,
