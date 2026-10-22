@@ -4234,6 +4234,69 @@ async function closeDocument() {
 
 
 // =====================
+// RESIZABLE SIDEBAR AND AI PANEL (drag the inner edge, double-click to reset)
+// =====================
+
+const PANEL_SIZES = {
+  sidebar: { min: 200, max: 520, cssVar: "--sidebar-w", pref: "sjb_sidebar_w" },
+  ai: { min: 240, max: 520, cssVar: "--ai-panel-w", pref: "sjb_ai_panel_w" }
+};
+const EDITOR_MIN_WIDTH = 360;
+
+function applyPanelWidth(name, px) {
+  const { cssVar } = PANEL_SIZES[name];
+  if (px == null) document.documentElement.style.removeProperty(cssVar);
+  else document.documentElement.style.setProperty(cssVar, `${px}px`);
+}
+
+function initPanelResize() {
+  for (const [name, size] of Object.entries(PANEL_SIZES)) {
+    applyPanelWidth(name, readPref(size.pref, null));
+  }
+
+  document.querySelectorAll(".resize-handle").forEach(handle => {
+    const name = handle.dataset.resize;
+    const size = PANEL_SIZES[name];
+    const panel = handle.parentElement;
+    const otherPanel = document.querySelector(name === "sidebar" ? ".ai-panel" : ".left");
+    let width = null;
+
+    const onMove = (e) => {
+      const rect = panel.getBoundingClientRect();
+      const wanted = name === "sidebar" ? e.clientX - rect.left : rect.right - e.clientX;
+      // Never squeeze the editor below its minimum
+      const room = window.innerWidth - otherPanel.getBoundingClientRect().width - EDITOR_MIN_WIDTH;
+      width = Math.round(Math.max(size.min, Math.min(size.max, room, wanted)));
+      applyPanelWidth(name, width);
+    };
+
+    const onUp = () => {
+      handle.removeEventListener("pointermove", onMove);
+      handle.classList.remove("dragging");
+      document.body.classList.remove("is-resizing");
+      if (width != null) writePref(size.pref, width);
+    };
+
+    handle.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      width = null;
+      handle.setPointerCapture(e.pointerId);
+      handle.classList.add("dragging");
+      document.body.classList.add("is-resizing");
+      handle.addEventListener("pointermove", onMove);
+      handle.addEventListener("pointerup", onUp, { once: true });
+      handle.addEventListener("pointercancel", onUp, { once: true });
+    });
+
+    handle.addEventListener("dblclick", () => {
+      applyPanelWidth(name, null);
+      writePref(size.pref, null);
+    });
+  });
+}
+
+
+// =====================
 // TOOLBAR OVERFLOW: buttons that do not fit move into a "⋯" menu
 // =====================
 
@@ -4876,6 +4939,7 @@ window.onload = async () => {
   } catch (e) {}
 
   setAiPanelOpen(readPref("sjb_ai_panel_open", false));
+  initPanelResize();
   applySectionOrder();
   applySectionFolds();
   updateSortButtons();
