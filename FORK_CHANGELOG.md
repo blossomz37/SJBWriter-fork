@@ -9,6 +9,24 @@ fork.
 
 ---
 
+## 2026-10-22: New-document buttons show a page with a plus
+
+One commit (`091d07e`). **File:** `app/templates/index.html`.
+
+**Why:** The "New file" button was a bare **+**. Next to the "New folder"
+button (a folder with a plus), it did not say what it makes.
+
+**How:** The four section "New file" buttons (Background, Writing, System,
+Prompts) and the empty screen's "New background note" button now use the
+Lucide `file-plus` icon, a page with a plus. That icon was already in
+`_icons.html`, because the empty screen's "New writing file" button uses it.
+No new icon was added.
+
+**How to check:** Look at any section header in the sidebar. The first button
+is a page with a plus, and the second is a folder with a plus.
+
+---
+
 ## 2026-10-22: Trash window with Restore
 
 One commit (`b8dd00f`). **Files:** `app/app.py`, `app/static/script.js`,
