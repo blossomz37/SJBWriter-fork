@@ -11,6 +11,9 @@
 
   --statusbar-h: 26px;
   --topbar-h: 40px;
+
+  /* One step of nesting in the sidebar tree */
+  --tree-indent: 18px;
 }
 
 /* Light mode (default) */
@@ -2089,4 +2092,16 @@ body.zen #closeDocBtn {
   width: 14px;
   height: 14px;
   color: var(--text-muted);
+}
+
+/* Folder arrow and the matching empty slot in file rows share one width */
+.folder-arrow,
+.tree-spacer {
+  width: 16px;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+.tree-spacer {
+  display: inline-block;
 }

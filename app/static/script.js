@@ -2703,7 +2703,7 @@ function renderSection(
       folderRow.draggable = true;
       folderRow.dataset.section = sectionName;
       folderRow.dataset.folderId = item.id;
-      folderRow.style.marginLeft = `${depth * 16}px`;
+      folderRow.style.marginLeft = `calc(var(--tree-indent) * ${depth})`;
 
       // Arrow (collapse/expand toggle)
       const folderArrow = document.createElement("span");
@@ -2940,7 +2940,7 @@ function renderSection(
     const row = document.createElement('div');
     row.classList.add('file-row');
     row.style.marginLeft =
-      `${depth * 16}px`;
+      `calc(var(--tree-indent) * ${depth})`;
 
     row.draggable = true;
     row.dataset.section = sectionName;
@@ -3021,6 +3021,10 @@ function renderSection(
     };
 
 
+    // Empty slot where folders have their arrow, so files line up with folders
+    const arrowSlot = document.createElement("span");
+    arrowSlot.className = "tree-spacer";
+    row.appendChild(arrowSlot);
     row.appendChild(input);
     row.appendChild(label);
 
