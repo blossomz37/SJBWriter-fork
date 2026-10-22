@@ -1851,6 +1851,7 @@ body.zen .ai-panel {
 /* Summary chip in the AI dock: what the AI will get */
 .ai-chip {
   position: relative;
+  flex-shrink: 0;   /* the model picker gives way first */
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2040,4 +2041,52 @@ body.no-document #readingTime {
 
 body.zen #closeDocBtn {
   display: none;
+}
+
+
+/* ===================== TREE ICONS ===================== */
+/* Project = book, folder = folder / folder-open, document = page (memo in AI setup) */
+.tree-label {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Title and word count wrap together as one line of text */
+.tree-text {
+  min-width: 0;
+}
+
+.tree-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 0.15em;
+  color: var(--text-muted);
+}
+
+.tree-icon .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.active-file .tree-icon {
+  color: var(--accent);
+}
+
+.project-icon {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.project-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-menu-item .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
 }

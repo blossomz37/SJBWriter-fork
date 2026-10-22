@@ -9,6 +9,35 @@ fork.
 
 ---
 
+## 2026-10-22: Icons for projects, folders, and documents
+
+**Commit:** `264b723`. **Files:** `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`, and
+`app/templates/_icons.html` (Lucide `book`, `folder`, `folder-open`,
+`file-text`, `sticky-note`).
+
+- **Why:** projects, folders, and documents looked alike in the lists. Only
+  the arrow hinted at a folder.
+- **How:**
+  - **Project:** a `book` icon in front of "Project: …", and in front of each
+    name in the project switcher menu.
+  - **Folder:** `folder` when closed and `folder-open` when open, so the icon
+    also shows the state.
+  - **Document:** `file-text` (a page with lines) in Background and Writing.
+    In the AI setup panel, System and Prompts files use `sticky-note`, a memo,
+    so AI instructions read differently from manuscript and notes.
+    `documentIconName(section)` picks the icon.
+  - **Style:** the icons are 14 px and muted, so the names stay the strongest
+    element. The open file's icon takes the accent color.
+- **Layout detail:**
+  - Each row label is now `inline-flex`: icon, then one `.tree-text` span that
+    holds both the title and the word count. A long title wraps with its count,
+    instead of the count drifting off as its own column.
+  - The AI summary chip got `flex-shrink: 0`, so the model picker gives way
+    first and "No rules · No prompt" is no longer cut off.
+
+---
+
 ## 2026-10-22: Close the document; the logo goes home
 
 **Commit:** `cd8dac0`. **Files:** `app/templates/index.html`,
