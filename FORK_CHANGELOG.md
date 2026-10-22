@@ -9,6 +9,48 @@ fork.
 
 ---
 
+## 2026-10-22: Sticky top bar, two layout bugs, and logo first
+
+**Commit:** `3b8b31f`. **Files:** `app/templates/index.html`,
+`app/static/style.css`.
+
+### 1. Sticky top bar
+
+The top bar is `position: sticky; top: 0`. It was `relative` before. It
+stays in view even if the page itself ever scrolls.
+
+### 2. Bug: the page was 30 px taller than the window
+
+- **Problem:** at every window size, the page could scroll 30 px, and the top
+  bar slid partly out of view.
+- **Cause:** the project ⋯ button is a `<span>` with a `data-tip` tooltip, but
+  it had no positioning. Its invisible tooltip (`::after`, `position:
+  absolute`) therefore anchored to the page instead of the button, and sat
+  just below the window's bottom edge. Even at `opacity: 0`, it still counts
+  toward the page's scrollable height.
+- **Fix:** a general `[data-tip] { position: relative; }` rule. Every
+  tooltip now anchors to its own element, so a future tooltip cannot cause
+  this again. Measured after the fix: page height equals window height at
+  1440×900, 1100×600, and 900×420.
+
+### 3. Bug: the zen-mode exit button was off-screen
+
+- **Problem:** `.zen-exit { position: fixed }` was overridden by the later
+  `.icon-btn { position: relative }` rule, both single-class selectors, so
+  the later one wins. In zen mode, the exit button fell below the window at
+  the far left. Esc still worked.
+- **Fix:** `#zenExit { position: fixed; }`. The ID selector wins
+  regardless of order. Measured after the fix: 12 px from the top and 16 px
+  from the right.
+
+### 4. Logo first
+
+The top bar's left side now reads: logo and version (the Home button), then
+the sidebar toggle. The logo sits on the 16 px gutter line, in line with the
+project icon below it. The old 4 px nudge on the logo was removed.
+
+---
+
 ## 2026-10-22: Toolbar overflow menus, and a clearer token meter
 
 **Commit:** `23a25b2`. **Files:** `app/templates/index.html`,
