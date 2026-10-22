@@ -177,6 +177,7 @@
         <button type="button" class="icon-btn primary-btn tip-up" onclick="generate()" data-tip="Generate (⌘↵)" aria-label="Generate (⌘↵)" id="generateBtn"><svg class="icon" aria-hidden="true"><use href="#i-sparkles"/></svg></button>
         <button type="button" class="icon-btn tip-up" onclick="stopGeneration()" data-tip="Stop (Esc)" aria-label="Stop (Esc)" id="stopGenerateBtn" disabled><svg class="icon" aria-hidden="true"><use href="#i-square"/></svg></button>
         <button type="button" class="icon-btn tip-up" onclick="undoLastGeneration()" data-tip="Undo last generation" aria-label="Undo last generation" id="undoGenerateBtn" disabled><svg class="icon" aria-hidden="true"><use href="#i-undo-2"/></svg></button>
+        <button type="button" class="icon-btn tip-up" onclick="openRequestPreview()" data-tip="Preview AI request" aria-label="Preview AI request" id="previewRequestBtn"><svg class="icon" aria-hidden="true"><use href="#i-scan-eye"/></svg></button>
         <button type="button" class="icon-btn tip-up" onclick="saveCurrentFile()" data-tip="Save (⌘S)" aria-label="Save (⌘S)"><svg class="icon" aria-hidden="true"><use href="#i-save"/></svg></button>
         <button type="button" class="icon-btn tip-up tip-end" onclick="clearPrompt()" data-tip="Clear instruction" aria-label="Clear instruction"><svg class="icon" aria-hidden="true"><use href="#i-eraser"/></svg></button>
         <button type="button" class="icon-btn tip-up tip-end toolbar-more hidden" onclick="openOverflowMenu(this, 'actions')" data-tip="More actions" aria-label="More actions"><svg class="icon" aria-hidden="true"><use href="#i-ellipsis"/></svg></button>
@@ -287,7 +288,7 @@
     <span id="wordCount">0 words</span>
     <span id="dialoguePercent" class="tip-up" data-tip=""></span>
     <span id="readingTime"></span>
-    <span id="tokenMeter" class="tip-up tip-end" data-level="ok" data-tip="Nothing to send yet">AI request ≈ 0 / 128k tokens</span>
+    <button type="button" id="tokenMeter" class="tip-up tip-end" data-level="ok" data-tip="Nothing to send yet" onclick="openRequestPreview()">AI request ≈ 0 tokens</button>
   </div>
 </footer>
 
@@ -305,6 +306,26 @@
         Restore this version
       </button>
       <button type="button" onclick="closeHistory()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== AI REQUEST PREVIEW MODAL ===================== -->
+<div id="requestModal" class="modal hidden">
+  <div class="modal-content request-content">
+    <button type="button" class="icon-btn ghost-btn modal-close tip-end" onclick="closeRequestPreview()" data-tip="Close (Esc)" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    <h2>What the AI will see</h2>
+    <p id="requestSummary" class="trash-hint"></p>
+    <div class="request-body">
+      <h3 class="request-label">Rules <span>system message, from your System files</span></h3>
+      <pre id="requestSystem" class="request-text"></pre>
+      <h3 class="request-label">Request <span>user message</span></h3>
+      <pre id="requestUser" class="request-text"></pre>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="request-copy" onclick="copyRequestPreview(this)">Copy</button>
+      <button type="button" onclick="closeRequestPreview()">Close</button>
+      <button type="button" class="primary-btn" onclick="closeRequestPreview(); generate();">Generate</button>
     </div>
   </div>
 </div>
