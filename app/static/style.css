@@ -2123,3 +2123,19 @@ body.zen #closeDocBtn {
   position: relative;   /* anchors its tooltip */
   cursor: default;
 }
+
+/* ===================== MENUS ===================== */
+/* All ⋯ menus and the project switcher follow Settings > Sidebar Font Size */
+.file-menu {
+  font-size: var(--sidebar-font-size, 13px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.file-menu div {
+  padding: 5px 10px;
+  border-radius: 4px;
+}
+
+.file-menu .project-menu-item {
+  padding: 5px 10px;
+}
