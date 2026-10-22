@@ -1943,3 +1943,75 @@ body.zen .top-bar {
 .top-bar .top-bar-logo {
   margin-left: 4px;
 }
+
+
+/* ===================== EMPTY STATE (no document open) ===================== */
+.empty-state {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-state h2 {
+  margin: 8px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.empty-state-icon {
+  width: 40px;
+  height: 40px;
+  stroke-width: 1.5;
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+.empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 14px 0 6px;
+}
+
+.empty-state-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+}
+
+.empty-state .empty-state-hint {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+body.no-document .empty-state {
+  display: flex;
+}
+
+body.no-document .title-row,
+body.no-document .formatting,
+body.no-document #editor,
+body.no-document #preview,
+body.no-document .bottom {
+  display: none;
+}
+
+body.no-document #wordCount,
+body.no-document #readingTime {
+  display: none;
+}

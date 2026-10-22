@@ -2445,6 +2445,7 @@ async function renderLists() {
   await renderSection('backgroundList', state.project.background || [], 'background');
   await renderSection('writingList', state.project.writing || [], 'writing');
   updateAiSummary();
+  updateEmptyState();
 }
 
 
@@ -3764,7 +3765,17 @@ function timeAgo(time) {
   return new Date(time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+// With no file open, typing in the editor would go nowhere: show the empty state instead.
+// Waits for startup, so it does not flash while the last file reopens.
+let appReady = false;
+
+function updateEmptyState() {
+  if (!appReady) return;
+  document.body.classList.toggle("no-document", !currentFile.filename);
+}
+
 function updateStatusBar() {
+  updateEmptyState();
   const project = document.getElementById("currentProjectLabel")
     .textContent.replace(/^\s*Project:\s*/, "").trim();
   const file = currentFile.filename ? (titleInput.value || "Untitled") : "";
@@ -4686,5 +4697,6 @@ window.onload = async () => {
   updateSortButtons();
   initSectionHeaders();
 
+  appReady = true;
   updateStatusBar();
 };

@@ -129,6 +129,21 @@
   <textarea id="editor"></textarea>
   <!-- Rendered Markdown view; shown instead of the editor in preview mode -->
   <div id="preview" class="markdown-preview hidden" title="Double-click to edit"></div>
+  <!-- Shown instead of the title, toolbar, editor, and AI dock when no file is open -->
+  <div id="emptyState" class="empty-state">
+    <svg class="icon empty-state-icon" aria-hidden="true"><use href="#i-feather"/></svg>
+    <h2>No document open</h2>
+    <p>Choose a file in the sidebar, or start a new one.</p>
+    <div class="empty-state-actions">
+      <button type="button" class="primary-btn" onclick="createNew('writing')">
+        <svg class="icon" aria-hidden="true"><use href="#i-file-plus"/></svg> New writing file
+      </button>
+      <button type="button" onclick="createNew('background')">
+        <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg> New background note
+      </button>
+    </div>
+    <p class="empty-state-hint">⌘\ shows or hides the sidebar · ⌘⌥\ opens AI setup</p>
+  </div>
   <!-- ---------- AI CONTROL PANEL ---------- -->
   <div class="bottom">
     <!-- Prompt Input -->
