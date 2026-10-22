@@ -9,6 +9,103 @@ fork.
 
 ---
 
+## 2026-10-22: Safe saving, version history, trash, and name checks
+
+**Commit:** `fbe4ae3`. **Files:** `app/app.py`, `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`, `.gitignore`.
+
+### 1. Saves can no longer leave a broken file
+
+- **Problem:** files were opened with `"w"` and rewritten in place. A crash,
+  full disk, or power cut during a save could leave an empty or half-written
+  chapter. The next load then returned nothing, and the next save wrote that
+  over the file.
+- **How:**
+  - `save_json()` writes to a temporary file (`.tmp-*.json`) in the same
+    folder.
+  - It flushes and fsyncs the file, sets the mode to 0644, then swaps it into
+    place with `os.replace()`. That swap is atomic: the file is either the old
+    version or the new one, never half of each.
+  - On any error, the temp file is removed.
+  - Every server write now goes through `save_json()`: file saves, new files,
+    state files, the initial global state, and the Ollama model order file.
+
+### 2. Automatic version history
+
+- **Why:** there was no way to get back yesterday's text.
+- **How:**
+  - When `/save_file` is about to overwrite a file whose text changed, it first
+    copies the current file to `<section folder>/.history/<file name>/<YYYYMMDD-HHMMSS>.json`.
+  - At most one version is kept per file every 5 minutes, and the newest 50
+    are kept. Both limits are constants at the top of the new section.
+  - A version is skipped when its text matches the newest kept version.
+  - Versions made in the same second get a `-2`, `-3`… suffix instead of
+    overwriting each other.
+  - Renaming a file renames its history folder too.
+- **New routes:**
+  - `/file_history` lists the versions, newest first, with time, title, and
+    word count.
+  - `/file_version` returns one version's text.
+  - `/restore_version` restores a version. It first keeps the current text as
+    a version (forced, ignoring the 5-minute limit), so a restore can always
+    be undone.
+- **UI:**
+  - The file ⋯ menu has a new **Version history…** item.
+  - It opens a window with the versions on the left (date, words, "x min ago")
+    and a plain-text preview on the right, in the editor's font.
+  - **Restore this version** puts the text back. If the file is open, the
+    editor updates in place.
+  - Esc closes the window. Unsaved changes are saved before the window opens.
+
+### 3. Deleted files and projects go to a trash folder
+
+- **Why:** delete was permanent, for both files and whole projects.
+- **How:**
+  - Deleting a file moves it to `<section folder>/.trash/<timestamp>-<name>`.
+  - Deleting a project moves the whole folder to
+    `Projects/.trash/<timestamp>-<project>`.
+  - Same-second name clashes get a `-2` suffix.
+  - The project list and the "last project" check skip hidden folders, so
+    `.trash` never appears as a project.
+  - Sidebar folders need no trash: they exist only in `state.json`, and the
+    app deletes them only when they are empty.
+  - Restoring from the trash is manual for now: move the file back and
+    re-add it.
+
+### 4. Names that could reach outside the data folders are refused
+
+- **Problem:** `section`, `filename`, and `project` came from the browser and
+  went straight into `os.path.join()`. A crafted request could read, overwrite,
+  or delete files elsewhere. For example, `delete_project` with `../Global`
+  would remove the global folder.
+- **How:**
+  - One `@app.before_request` hook checks every JSON request. `section` must
+    be one of `prompts`, `system`, `background`, or `writing`. `filename`,
+    `project`, and `current_project` must be single names: no `/` or `\`, no
+    `..`, and no leading dot.
+  - As a second line of defense, `get_project_dir()` falls back to `default`
+    if the saved current project is not a safe name, and
+    `load_file_content()` (used by `/generate`) returns nothing for unsafe
+    names.
+- **Note:** names the app creates (slugified titles) always pass, so normal
+  use is unchanged.
+
+### 5. Git
+
+`.history/`, `.trash/`, and `.tmp-*` are ignored everywhere. The rules sit at
+the end of `.gitignore`, so they win over the `!Projects/sample-project/**`
+exception.
+
+**Check:**
+
+1. Edit a file and save it. Open ⋯ → Version history, and the old text should
+   be listed.
+2. Restore it, then open Version history again. Your edited text should now be
+   a version too.
+3. Delete a file, then look in that section's `.trash` folder.
+
+---
+
 ## 2026-10-22: AI output marker settings, and a marker placement fix
 
 **Commit:** `c90d290`. **Files:** `app/templates/index.html`,

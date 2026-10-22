@@ -23,3 +23,7 @@ workspace-agents/
 # Personal app settings (font, theme, recent projects); the app recreates it
 Global/app_state.json
 .env
+# Version history and trash kept by the app (must stay last to win over the sample-project exception)
+.history/
+.trash/
+.tmp-*

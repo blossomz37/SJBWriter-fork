@@ -219,6 +219,23 @@
   </div>
 </footer>
 
+<!-- ===================== VERSION HISTORY MODAL ===================== -->
+<div id="historyModal" class="modal hidden">
+  <div class="modal-content history-content">
+    <h2>Version history</h2>
+    <div class="history-layout">
+      <div id="historyList" class="history-list"></div>
+      <div id="historyPreview" class="history-preview"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" id="historyRestoreBtn" class="primary-btn" onclick="restoreSelectedVersion()" disabled>
+        Restore this version
+      </button>
+      <button type="button" onclick="closeHistory()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Exit button shown only in zen mode (minimize-2 icon: Lucide, ISC license) -->
 <button type="button"
         id="zenExit"
