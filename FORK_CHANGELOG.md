@@ -9,6 +9,67 @@ fork.
 
 ---
 
+## 2026-10-22: Labeled AI request, and "What the AI will see"
+
+One commit (`1cae5df`). **Files:** `app/app.py`, `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`, `app/templates/_icons.html`
+(Lucide `scan-eye`).
+
+**Why:** The app joined everything into one user message with `---` between
+the parts: System files, background notes, chapters, the open document, and the
+instruction. The model could not tell the author's rules from their notes, or
+their notes from the manuscript. The System files were also not sent as a
+system message, so models gave them less weight. The author also had no way
+to see the text that was sent.
+
+**How it works:**
+
+- **Rules are a system message.** The ticked System files, in sidebar order,
+  become the system message: the `system` role for OpenRouter, and the
+  `system` field for Ollama. With no System files ticked, no system message is
+  sent.
+- **Everything else is labeled.** The user message wraps each part in a tag,
+  and each document carries its title:
+  - `<background>` holds the ticked Background notes, each as
+    `<document title="...">`.
+  - `<writing>` holds the other ticked Writing documents, in the same way.
+  - `<current_document title="...">` holds the open document, from the editor,
+    so unsaved text is included.
+  - `<instruction>` holds the instruction box.
+  - Empty parts and empty documents are left out. A double quote in a title
+    becomes a single quote, so the tag stays valid.
+- **The open document is sent once.** Before, an open Background note that
+  was also ticked went twice: once from disk and once from the editor. Now
+  the open document is taken out of its section's list in both Background and
+  Writing. System files always stay in the rules.
+- **One builder.** A single server function, `build_ai_request`, makes the
+  text. Generate and the preview both use it, so the preview is exactly what
+  is sent.
+- **"What the AI will see" window.**
+  - **To open it:** click the new eye-in-a-frame button in the AI dock, or
+    click the "AI request ≈ N tokens" meter in the status bar. When space is
+    short, the button moves into the dock's **⋯** menu.
+  - **What it shows:** the model, the token estimate, a note when web search
+    adds results, then the **Rules** box and the **Request** box.
+  - **Its buttons:** **Copy** puts both parts on the clipboard. **Generate**
+    closes the window and sends.
+  - The new route is `POST /preview_request`. It takes the same body as
+    `/generate`, without the settings.
+- **The token meter matches.** It now counts the same labeled text, so the
+  status bar and the window show the same number.
+- **Older pages still work.** A page that is still open from before this
+  change sends the editor text as the last Writing item. The server still
+  accepts that.
+
+**How to check:**
+
+1. Tick a System file, a Background note, and an instruction.
+2. Click the token meter. Your System file shows under **Rules**, and the
+   rest shows labeled under **Request**.
+3. The number in the window equals the number in the status bar.
+
+---
+
 ## 2026-10-22: New-document buttons show a page with a plus
 
 One commit (`091d07e`). **File:** `app/templates/index.html`.
