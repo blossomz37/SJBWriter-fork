@@ -2611,6 +2611,11 @@ function renderSection(
 
   if (!isRecursive) {
     container.innerHTML = '';
+  }
+
+  // Listeners go on once; the container element survives re-renders
+  if (!isRecursive && !container.dataset.dropReady) {
+    container.dataset.dropReady = "1";
 
     container.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -2624,13 +2629,16 @@ function renderSection(
       const draggedFilename = e.dataTransfer.getData('text/plain');
       const draggedSection = e.dataTransfer.getData('section');
       if (!draggedFilename) return;
-      if (draggedSection !== sectionName) return;
+      if (draggedSection !== sectionName) {
+        await moveFileToSection(draggedSection, sectionName, draggedFilename);
+        return;
+      }
 
       await moveFileTo(sectionName, draggedFilename, null, null, null);
     });
   }
 
-  for (let item of items) {
+  for (let item of sortForView(items, sectionName)) {
     if (item.type === "folder") {
       const folderRow =
         document.createElement("div");
@@ -2799,9 +2807,20 @@ function renderSection(
         folderRow.classList.remove('drag-over-folder', 'drag-over-top', 'drag-over-bottom');
 
         const draggedSection = e.dataTransfer.getData('section');
-        if (draggedSection !== sectionName) return;
-
         const draggedFolderId = e.dataTransfer.getData('folder-id');
+
+        if (draggedSection !== sectionName) {
+          if (draggedFolderId) {
+            showToast("Folders move only within their own section.", "info");
+            return;
+          }
+          const otherFile = e.dataTransfer.getData('text/plain');
+          if (otherFile) {
+            await moveFileToSection(draggedSection, sectionName, otherFile, { folderId: item.id });
+          }
+          return;
+        }
+
         if (draggedFolderId) {
           if (draggedFolderId === item.id) return;
           const rect = folderRow.getBoundingClientRect();
@@ -2989,12 +3008,23 @@ function renderSection(
     row.addEventListener('drop', async (e) => {
       e.preventDefault();
       const draggedSection = e.dataTransfer.getData('section');
-      if (draggedSection !== sectionName) return;
 
       const rect = row.getBoundingClientRect();
       const position = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
 
       const draggedFolderId = e.dataTransfer.getData('folder-id');
+
+      if (draggedSection !== sectionName) {
+        if (draggedFolderId) {
+          showToast("Folders move only within their own section.", "info");
+          return;
+        }
+        const otherFile = e.dataTransfer.getData('text/plain');
+        if (otherFile) {
+          await moveFileToSection(draggedSection, sectionName, otherFile, { targetFilename: filename, position });
+        }
+        return;
+      }
       if (draggedFolderId) {
         await moveFolderTo(sectionName, draggedFolderId, filename, null, position);
         return;
@@ -3839,6 +3869,233 @@ function togglePreview() {
 preview.addEventListener("dblclick", () => setPreview(false));
 
 // =====================
+// SIDEBAR: SORT, FOLD, SECTION ORDER, MOVES BETWEEN SECTIONS
+// =====================
+
+const SECTION_LABELS = {
+  prompts: "Prompts",
+  system: "System",
+  background: "Background",
+  writing: "Writing"
+};
+
+const SORT_MODES = ["manual", "az", "za"];
+const SORT_INFO = {
+  manual: { icon: "arrow-up-down", tip: "Sort: My order" },
+  az: { icon: "arrow-down-a-z", tip: "Sort: A–Z" },
+  za: { icon: "arrow-down-z-a", tip: "Sort: Z–A" }
+};
+
+// Per-viewer sidebar preferences live in localStorage
+function readPref(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) ?? fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function writePref(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {}
+}
+
+function getSort(section) {
+  return readPref("sjb_sort", {})[section] || "manual";
+}
+
+// Sorting only changes the view; the saved hand-made order stays as it is
+function sortForView(items, section) {
+  const mode = getSort(section);
+  if (mode === "manual") return items;
+
+  const title = item => (typeof item === "string" ? item : item.title || item.filename || "");
+  const byTitle = (a, b) => title(a).localeCompare(title(b), undefined, { numeric: true, sensitivity: "base" });
+  const folders = items.filter(i => i?.type === "folder").sort(byTitle);
+  const files = items.filter(i => i?.type !== "folder").sort(byTitle);
+  if (mode === "za") {
+    folders.reverse();
+    files.reverse();
+  }
+  return [...folders, ...files];
+}
+
+function updateSortButtons() {
+  document.querySelectorAll(".sort-btn").forEach(btn => {
+    const info = SORT_INFO[getSort(btn.dataset.sortSection)];
+    btn.innerHTML = iconSvg(info.icon);
+    btn.dataset.tip = info.tip;
+    btn.setAttribute("aria-label", info.tip);
+    btn.classList.toggle("is-sorted", info !== SORT_INFO.manual);
+  });
+}
+
+async function cycleSort(section) {
+  const sorts = readPref("sjb_sort", {});
+  const next = SORT_MODES[(SORT_MODES.indexOf(getSort(section)) + 1) % SORT_MODES.length];
+  sorts[section] = next;
+  writePref("sjb_sort", sorts);
+  updateSortButtons();
+  await renderLists();
+}
+
+function sectionEl(section) {
+  return document.querySelector(`.section[data-weight="${section}"]`);
+}
+
+function applySectionFolds() {
+  const folded = readPref("sjb_folded_sections", []);
+  Object.keys(SECTION_LABELS).forEach(section => {
+    const isFolded = folded.includes(section);
+    sectionEl(section)?.classList.toggle("folded", isFolded);
+    sectionEl(section)?.querySelector(".section-toggle")
+      ?.setAttribute("aria-expanded", String(!isFolded));
+  });
+}
+
+function toggleSectionFold(section) {
+  const folded = new Set(readPref("sjb_folded_sections", []));
+  folded.has(section) ? folded.delete(section) : folded.add(section);
+  writePref("sjb_folded_sections", [...folded]);
+  applySectionFolds();
+}
+
+// Sections reorder within their group (Prompts/System, Background/Writing)
+function applySectionOrder() {
+  const order = readPref("sjb_section_order", []);
+  order.forEach(section => {
+    const el = sectionEl(section);
+    el?.parentElement.appendChild(el);
+  });
+}
+
+function saveSectionPositions() {
+  writePref(
+    "sjb_section_order",
+    [...document.querySelectorAll(".section[data-weight]")].map(el => el.dataset.weight)
+  );
+}
+
+function initSectionHeaders() {
+  document.querySelectorAll(".section-header").forEach(header => {
+    const section = header.dataset.section;
+    const el = sectionEl(section);
+
+    header.addEventListener("dragstart", (e) => {
+      // Rows inside the section start their own drags
+      if (e.target !== header) return;
+      e.dataTransfer.setData("application/x-sjb-section", section);
+      e.dataTransfer.effectAllowed = "move";
+      el.classList.add("dragging-section");
+    });
+
+    header.addEventListener("dragend", () => {
+      el.classList.remove("dragging-section");
+      document.querySelectorAll(".section-header").forEach(h => {
+        h.classList.remove("drop-before", "drop-after", "drop-into");
+      });
+    });
+
+    header.addEventListener("dragover", (e) => {
+      const types = [...e.dataTransfer.types];
+      if (types.includes("application/x-sjb-section")) {
+        e.preventDefault();
+        const rect = header.getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        header.classList.toggle("drop-before", before);
+        header.classList.toggle("drop-after", !before);
+      } else if (types.includes("text/plain")) {
+        // A file dropped on a header lands at the top level of that section
+        e.preventDefault();
+        header.classList.add("drop-into");
+      }
+    });
+
+    header.addEventListener("dragleave", () => {
+      header.classList.remove("drop-before", "drop-after", "drop-into");
+    });
+
+    header.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      header.classList.remove("drop-before", "drop-after", "drop-into");
+
+      const draggedSection = e.dataTransfer.getData("application/x-sjb-section");
+      if (draggedSection) {
+        const dragged = sectionEl(draggedSection);
+        if (draggedSection === section || dragged.parentElement !== el.parentElement) {
+          if (dragged.parentElement !== el.parentElement) {
+            showToast("Prompts and System are shared by all projects, so they stay apart from Background and Writing.", "info");
+          }
+          return;
+        }
+        const rect = header.getBoundingClientRect();
+        const before = e.clientY < rect.top + rect.height / 2;
+        el.parentElement.insertBefore(dragged, before ? el : el.nextSibling);
+        saveSectionPositions();
+        return;
+      }
+
+      const filename = e.dataTransfer.getData("text/plain");
+      const fromSection = e.dataTransfer.getData("section");
+      if (filename && e.dataTransfer.getData("folder-id")) return;
+      if (filename && fromSection === section) {
+        await moveFileTo(section, filename, null, null, null);
+      } else if (filename && fromSection) {
+        await moveFileToSection(fromSection, section, filename);
+      }
+    });
+  });
+}
+
+// Move a file to another section: on disk, with its history, into the dropped spot
+async function moveFileToSection(fromSection, toSection, filename, opts = {}) {
+  const wasOpen = currentFile.section === fromSection && currentFile.filename === filename;
+  if (wasOpen && isDirty) await saveCurrentFile();
+
+  const res = await fetch('/move_file_section', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from_section: fromSection,
+      section: toSection,
+      filename,
+      folder_id: opts.folderId || null,
+      target_filename: opts.targetFilename || null,
+      position: opts.position || "after"
+    })
+  });
+  const data = await res.json();
+
+  if (!res.ok) {
+    showToast(data.error || "Move failed");
+    return;
+  }
+
+  // Checkbox and prompt selections do not follow the file across sections
+  if (fromSection === "prompts") {
+    if (selected.prompt === filename) selected.prompt = null;
+  } else {
+    selected[fromSection]?.delete(filename);
+  }
+  saveSelections();
+  delete fileCache[`${fromSection}/${filename}`];
+
+  if (wasOpen) {
+    currentFile.section = toSection;
+    await fetch('/opened_file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ section: toSection, filename })
+    });
+  }
+
+  await loadAll();
+  showToast(`Moved to ${SECTION_LABELS[toSection]}.`, "info");
+}
+
+
+// =====================
 // VERSION HISTORY
 // =====================
 
@@ -4350,6 +4607,11 @@ window.onload = async () => {
     if (localStorage.getItem("sjb_preview") === "1") setPreview(true);
     if (localStorage.getItem("sjb_sidebar_collapsed") === "1") setSidebarCollapsed(true);
   } catch (e) {}
+
+  applySectionOrder();
+  applySectionFolds();
+  updateSortButtons();
+  initSectionHeaders();
 
   updateStatusBar();
 };

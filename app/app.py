@@ -394,6 +394,46 @@ def remove_folder(items, folder_id):
     return None
 
 
+def remove_file_from_tree(items, filename):
+    result = []
+    for item in items:
+        if isinstance(item, dict) and item.get("type") == "folder":
+            item["items"] = remove_file_from_tree(item.get("items", []), filename)
+            result.append(item)
+        elif isinstance(item, dict) and item.get("filename") == filename:
+            continue  # drop it
+        elif isinstance(item, str) and item == filename:
+            continue  # drop it
+        else:
+            result.append(item)
+    return result
+
+
+def insert_into_tree(items, entry, folder_id=None, target_filename=None, position="after"):
+    """Place entry inside a folder, next to a target file, or at the end."""
+    if folder_id:
+        folder = find_folder(items, folder_id)
+        if folder:
+            folder.setdefault("items", []).append(entry)
+            return
+
+    if target_filename:
+        def place(level):
+            for i, item in enumerate(level):
+                if isinstance(item, dict) and item.get("type") == "folder":
+                    if place(item.get("items", [])):
+                        return True
+                elif (item.get("filename") if isinstance(item, dict) else item) == target_filename:
+                    level.insert(i if position == "before" else i + 1, entry)
+                    return True
+            return False
+
+        if place(items):
+            return
+
+    items.append(entry)
+
+
 # ===================== MODEL HELPERS =====================
 
 MODEL_LIST_PATH = os.path.join(
@@ -1763,20 +1803,6 @@ def api_delete_item():
     # Update state
     state = load_json(state_file)
 
-    def remove_file_from_tree(items, filename):
-        result = []
-        for item in items:
-            if isinstance(item, dict) and item.get("type") == "folder":
-                item["items"] = remove_file_from_tree(item.get("items", []), filename)
-                result.append(item)
-            elif isinstance(item, dict) and item.get("filename") == filename:
-                continue  # drop it
-            elif isinstance(item, str) and item == filename:
-                continue  # drop it
-            else:
-                result.append(item)
-        return result
-
     state[section] = remove_file_from_tree(state.get(section, []), filename)
 
     # Clear last opened if needed
@@ -1956,6 +1982,71 @@ def api_delete_folder():
     return jsonify({
         "status": "deleted"
     })
+
+
+# ----- MOVE A FILE TO ANOTHER SECTION -----
+
+@app.route('/move_file_section', methods=['POST'])
+def api_move_file_section():
+    ensure_structure()
+
+    data = request.json
+    from_section = data.get("from_section")
+    to_section = data.get("section")
+    filename = data.get("filename")
+
+    if from_section not in SECTIONS or not to_section or not filename:
+        return jsonify({"error": "Missing data"}), 400
+
+    if from_section == to_section:
+        return jsonify({"error": "File is already in this section"}), 400
+
+    src = os.path.join(get_base_path(from_section), filename)
+    dest = os.path.join(get_base_path(to_section), filename)
+
+    if not os.path.exists(src):
+        return jsonify({"error": "File not found"}), 404
+
+    if os.path.exists(dest):
+        return jsonify({
+            "error": f"{to_section.title()} already has a file with this name"
+        }), 400
+
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    shutil.move(src, dest)
+
+    # Version history follows the file
+    old_history = history_dir(from_section, filename)
+    new_history = history_dir(to_section, filename)
+    if os.path.isdir(old_history) and not os.path.exists(new_history):
+        os.makedirs(os.path.dirname(new_history), exist_ok=True)
+        shutil.move(old_history, new_history)
+
+    # Take it out of the source list (keeping its title and word count)
+    source_state_file = get_state_file(from_section)
+    source_state = load_json(source_state_file)
+    old_item = find_file_item(source_state.get(from_section, []), filename)
+    entry = {"type": "file", "filename": filename}
+    if isinstance(old_item, dict):
+        entry.update({k: old_item[k] for k in ("title", "wordCount") if k in old_item})
+    source_state[from_section] = remove_file_from_tree(
+        source_state.get(from_section, []), filename
+    )
+    save_json(source_state_file, source_state)
+
+    # Put it into the target list; reload, as both lists may share a state file
+    target_state_file = get_state_file(to_section)
+    target_state = load_json(target_state_file)
+    insert_into_tree(
+        target_state.setdefault(to_section, []),
+        entry,
+        folder_id=data.get("folder_id"),
+        target_filename=data.get("target_filename"),
+        position=data.get("position", "after")
+    )
+    save_json(target_state_file, target_state)
+
+    return jsonify({"status": "moved", "section": to_section, "filename": filename})
 
 
 # ----- VERSION HISTORY -----
