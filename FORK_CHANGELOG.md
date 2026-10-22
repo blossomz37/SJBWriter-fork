@@ -9,6 +9,103 @@ fork.
 
 ---
 
+## 2026-10-22: Sidebar: fold, sort, reorder sections, move files between sections
+
+**Commit:** `b953ad2`. **Files:** `app/app.py`, `app/static/script.js`,
+`app/static/style.css`, `app/templates/index.html`, and
+`app/templates/_icons.html` (3 more Lucide icons: `arrow-up-down`,
+`arrow-down-a-z`, `arrow-down-z-a`).
+
+Each section header (`<h3>`) now has `class="section-header"`,
+`draggable="true"`, and `data-section`. It holds a fold button that wraps a
+chevron and the label, the existing new-file and new-folder buttons, and a sort
+button on the right.
+
+### 1. Fold a section
+
+- **Why:** the four sections share a fixed height. With 10 prompts, the
+  Prompts list was cut off.
+- **How:**
+  - Click the section label. A `folded` class hides the list, turns the
+    chevron, and sets the section to `flex: 0 0 auto`, so the other sections
+    in the group grow.
+  - If every section in a group is folded, the group shrinks too, through a
+    `:has()` rule.
+  - The folded sections are remembered in `localStorage`
+    (`sjb_folded_sections`).
+
+### 2. Sort toggle per section
+
+- **How:**
+  - The button cycles **My order → A–Z → Z–A**. The icon and tooltip change
+    with it, and the button takes the accent color while the list is sorted.
+  - `sortForView()` sorts only what is shown. Folders come first, then files,
+    by title, with numbers in natural order (2 before 10), at every folder
+    level.
+  - The saved order in `state.json` is never changed, so "My order" always
+    brings back the hand-made order.
+  - Dragging inside a sorted list still works: it places the file next to the
+    target in the saved order.
+  - The sort mode per section is in `localStorage` (`sjb_sort`).
+
+### 3. Reorder sections
+
+- **How:**
+  - Drag a section label above or below another. A 2 px accent line shows the
+    drop spot.
+  - Sections move only inside their group (Prompts/System, or
+    Background/Writing), because one group is shared by all projects and the
+    other belongs to one project. A drop across groups shows a short notice
+    instead.
+  - The order is in `localStorage` (`sjb_section_order`) and is applied on
+    load by re-appending the section elements.
+
+### 4. Move a file to another section
+
+- **Why:** a note that becomes a chapter, or a prompt that should be a system
+  rule, could not change section.
+- **Where to drop a file from another section:**
+  - on a section label (it goes to the top level)
+  - on a folder (it goes into the folder)
+  - on a file (it goes before or after that file)
+  - on empty space in the list (it goes to the end)
+- **Server:** the new route `/move_file_section` (`from_section`, `section`,
+  `filename`, and optional `folder_id`, `target_filename`, `position`):
+  - moves the file on disk, and its `.history` folder with it
+  - takes the item out of the source list, keeping its title and word count
+  - reloads the target state (both lists can share one `state.json`) and
+    inserts the item with the new `insert_into_tree()` helper
+  - refuses a move when the target section already has a file with that name,
+    and leaves the file where it was
+- **Client:** `moveFileToSection()`:
+  - saves first if the moved file is open with unsaved changes
+  - clears its checkbox or prompt selection, because selections belong to a
+    section
+  - re-points the "last opened" record if the file was open
+  - reloads, then shows "Moved to Writing." (for example)
+- **Not included:** folders move only within their own section. A cross-section
+  folder drop shows a notice.
+
+### 5. Bug fix: one drop ran the move many times
+
+- **Problem:** `renderSection()` added the list's `dragover` and `drop`
+  listeners on every refresh, and the list element survives refreshes. After
+  six refreshes, one drop on empty list space ran the move handler **8 times**.
+- **How:** the listeners are now added once. A `data-drop-ready` flag on the
+  list marks them. The same drop now runs the handler once.
+- **Refactor:** `remove_file_from_tree()` moved out of the delete route to the
+  module level, so the move route can use it too.
+
+**Check:**
+
+1. Fold Prompts. System should take the space.
+2. Click the Writing sort button twice: A–Z, then Z–A.
+3. Drag the System label above Prompts.
+4. Drag a Background file onto the Writing label. It should move, and a
+   "Moved to Writing." notice should appear.
+
+---
+
 ## 2026-10-22: UI polish, batch 3: icons, mode + accent themes, toasts
 
 Three commits. **Files:** `app/templates/index.html`, the new
