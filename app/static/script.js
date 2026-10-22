@@ -2223,7 +2223,21 @@ async function loadAll() {
     ...collectFilenames(state.global.prompts || []),
     ...collectFilenames(state.global.system || [])
   ];
-  if (
+
+  // The writer closed the document here last time: stay on the empty state
+  if (readPref(`sjb_doc_closed_${currentProject}`, false)) {
+    currentFile = {
+      section: null,
+      filename: null
+    };
+    editor.value = "";
+    schedulePreviewRender();
+    titleInput.value = "";
+    isDirty = false;
+    renderLists();
+  }
+
+  else if (
     globalLast &&
     globalLast.project === currentProject &&
     globalLast.section &&
@@ -4135,6 +4149,35 @@ async function moveFileToSection(fromSection, toSection, filename, opts = {}) {
 
 
 // =====================
+// CLOSE THE DOCUMENT (title-row × and the app logo)
+// =====================
+
+// Saves first, then shows the empty state; remembered per project across reloads
+async function closeDocument() {
+  if (!currentFile.filename) return;
+  if (isGenerating) {
+    showToast("Please wait for generation to finish.", "info");
+    return;
+  }
+  if (isDirty) await saveCurrentFile();
+
+  currentFile = {
+    section: null,
+    filename: null
+  };
+  titleInput.value = "";
+  editor.value = "";
+  isDirty = false;
+  lastSavedAt = null;
+  writePref(`sjb_doc_closed_${currentProject}`, true);
+
+  updateWordCount();
+  updateTokenMeter();
+  await renderLists();
+}
+
+
+// =====================
 // AI SETUP PANEL (System + Prompts, on the right)
 // =====================
 
@@ -4618,6 +4661,7 @@ async function openFile(section, filename) {
   editor.value = data.content || "";
   isDirty = false;
   lastSavedAt = null;
+  writePref(`sjb_doc_closed_${currentProject}`, false);
   saveSelections();
   await renderLists();
   await revealActiveFile();

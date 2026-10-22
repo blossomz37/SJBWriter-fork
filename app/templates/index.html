@@ -25,8 +25,11 @@
 <header class="top-bar">
   <div class="top-bar-brand">
     <button type="button" id="sidebarToggle" class="icon-btn ghost-btn tip-start" onclick="toggleSidebar()" data-tip="Sidebar (⌘\)" aria-label="Toggle sidebar" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-panel-left"/></svg></button>
-    <img src="{{ url_for('static', filename='apple-touch-icon.png') }}" alt="SJB Writer" class="top-bar-logo" />
-    <span class="top-bar-version">v{{ app_version }}</span>
+    <!-- Logo = home: closes the document and shows the start screen -->
+    <button type="button" class="top-bar-home tip-start" onclick="closeDocument()" data-tip="Home" aria-label="Home: close the document">
+      <img src="{{ url_for('static', filename='apple-touch-icon.png') }}" alt="" class="top-bar-logo" />
+      <span class="top-bar-version">v{{ app_version }}</span>
+    </button>
   </div>
   <div class="top-bar-actions">
     <button type="button" id="aiPanelToggle" class="icon-btn ghost-btn tip-end" onclick="toggleAiPanel()" data-tip="AI setup (⌘⌥\)" aria-label="Toggle AI setup" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-panel-right"/></svg></button>
@@ -92,6 +95,7 @@
   <!-- ---------- TITLE INPUT ---------- -->
   <div class="title-row">
     <input id="titleInput" placeholder="Title..." />
+    <button type="button" id="closeDocBtn" class="icon-btn ghost-btn tip-end" onclick="closeDocument()" data-tip="Close document" aria-label="Close document"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
   </div>
   <!-- ---------- FORMATTING BAR ---------- -->
   <div class="formatting">

@@ -2015,3 +2015,29 @@ body.no-document #wordCount,
 body.no-document #readingTime {
   display: none;
 }
+
+
+/* ===================== CLOSE DOCUMENT / HOME ===================== */
+.title-row {
+  padding-right: 8px;
+}
+
+/* Logo + version act as one plain "home" button */
+.top-bar-home {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-color: transparent;
+  background-color: transparent;
+}
+
+.top-bar-home:hover {
+  border-color: var(--border);
+  background-color: var(--hover);
+}
+
+body.zen #closeDocBtn {
+  display: none;
+}
