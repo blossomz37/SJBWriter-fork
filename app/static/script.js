@@ -283,6 +283,18 @@ function iconSvg(name) {
   return `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 }
 
+// Small muted icon for a sidebar row: documents are pages, AI setup files are memos
+function treeIcon(name) {
+  const span = document.createElement("span");
+  span.className = "tree-icon";
+  span.innerHTML = iconSvg(name);
+  return span;
+}
+
+function documentIconName(sectionName) {
+  return sectionName === "system" || sectionName === "prompts" ? "sticky-note" : "file-text";
+}
+
 
 // =====================
 // TOASTS: non-blocking messages in place of alert()
@@ -1558,7 +1570,8 @@ function toggleProjectDropdown(e) {
   function addProject(project) {
     const item = document.createElement("div");
     item.classList.add("project-menu-item");
-    item.textContent = project.title || project.id;
+    item.innerHTML = iconSvg("book");
+    item.appendChild(document.createTextNode(project.title || project.id));
 
     if (project.id === currentProject) {
       item.classList.add("current");
@@ -2739,7 +2752,11 @@ function renderSection(
       // Title
       const folderLabel = document.createElement("span");
 
-      folderLabel.textContent = item.title;
+      folderLabel.className = "tree-label";
+      const folderText = document.createElement("span");
+      folderText.className = "tree-text";
+      folderText.textContent = item.title;
+      folderLabel.append(treeIcon(item.collapsed ? "folder" : "folder-open"), folderText);
       if (
         shouldShowCounts(sectionName) &&
         shouldShowFolderTotals()
@@ -2761,7 +2778,7 @@ function renderSection(
             ` (${total.toLocaleString()})`;
         }
 
-        folderLabel.appendChild(countSpan);
+        folderText.appendChild(countSpan);
       }
       folderLabel.style.cursor = "pointer";
       folderLabel.onclick = async () => {
@@ -2967,11 +2984,16 @@ function renderSection(
 
 
     const label = document.createElement('span');
+    label.className = "tree-label";
     label.style.cursor = "pointer";
 
-    label.appendChild(
-      document.createTextNode(" " + title)
+    label.appendChild(treeIcon(documentIconName(sectionName)));
+    const labelText = document.createElement("span");
+    labelText.className = "tree-text";
+    labelText.appendChild(
+      document.createTextNode(title)
     );
+    label.appendChild(labelText);
     if (shouldShowCounts(sectionName)) {
 
       const countSpan =
@@ -2989,7 +3011,7 @@ function renderSection(
           ` (${item.wordCount.toLocaleString()})`;
       }
 
-      label.appendChild(countSpan);
+      labelText.appendChild(countSpan);
     }
 
     row.onclick = (e) => {
