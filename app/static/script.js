@@ -1351,6 +1351,10 @@ function updateActiveModelDisplay() {
 }
 
 
+// Matches the narrow-window rules in style.css
+const NARROW = window.matchMedia("(max-width: 700px)");
+NARROW.addEventListener("change", () => updateTokenMeter());
+
 function isOpenFile(section, filename) {
   return currentFile.section === section && currentFile.filename === filename;
 }
@@ -1399,7 +1403,9 @@ async function updateTokenMeter() {
   const meter = document.getElementById("tokenMeter");
   meter.dataset.level = level;
   const cost = requestCost(tokens);
-  meter.innerText = `AI request ≈ ${tokens.toLocaleString()} tokens` + (cost ? ` · ${cost.short}` : "");
+  // Narrow windows get the short form; the tooltip keeps the details
+  meter.innerText = (NARROW.matches ? `≈ ${short(tokens)} tokens` : `AI request ≈ ${tokens.toLocaleString()} tokens`) +
+    (cost ? ` · ${cost.short}` : "");
 
   // Hover: where the tokens come from, and how much of the model's limit they use
   const breakdown = Object.entries(parts)

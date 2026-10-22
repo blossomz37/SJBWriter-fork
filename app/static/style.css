@@ -2299,8 +2299,16 @@ body.zen #closeDocBtn {
   padding-left: calc(var(--tree-indent) + 2px);
 }
 
-/* Long project › file names truncate; the right side stays free for tooltips */
+/* Long project › file names truncate first; the right side shrinks only when
+   it must, so the status bar never makes the page scroll sideways */
 .status-left {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.status-right {
+  flex: 0 0 auto;
+  max-width: 100%;
   overflow: hidden;
 }
 
@@ -2384,6 +2392,36 @@ body.zen #closeDocBtn {
 @media (max-width: 1000px) {
   .ai-chip {
     min-width: 34px;
+  }
+}
+
+/* ===================== NARROW WINDOWS (phones, split screens) ===================== */
+/* The sidebar floats over the editor like a drawer instead of squeezing it,
+   and the status bar keeps only what fits */
+@media (max-width: 700px) {
+  .container {
+    position: relative;
+  }
+
+  .left {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    width: min(85vw, 320px);
+    max-width: none;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.18);
+  }
+
+  body.sidebar-collapsed .left {
+    box-shadow: none;
+  }
+
+  .left .resize-handle,
+  #readingTime,
+  #dialoguePercent {
+    display: none;
   }
 }
 
