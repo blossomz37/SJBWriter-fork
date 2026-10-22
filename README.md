@@ -1,3 +1,7 @@
+**Developer's Note:** This is a fork of Jim Boulter's app [SJB Writer](https://github.com/blossomz37/SJBWriter-fork).
+**Date:** 2026-10-22
+___
+
 # SJBWriter
 
 **A local-first writing environment with AI assistance, flexible project organization, and control over your creative workflow.**

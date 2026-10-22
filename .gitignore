@@ -17,3 +17,5 @@ __pycache__/
 
 Projects/sample-project/.DS_Store
 Global/ollama_order.json
+
+workspace-agents/
