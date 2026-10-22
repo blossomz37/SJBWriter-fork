@@ -98,7 +98,23 @@
 <!-- ===================== RIGHT PANEL: WORKSPACE ===================== -->
 <div class="right">
   <!-- ---------- TITLE INPUT ---------- -->
-  <input id="titleInput" placeholder="Title..." />
+  <div class="title-row">
+    <!-- Sidebar toggle (panel-left icon: Lucide, ISC license) -->
+    <button type="button"
+            id="sidebarToggle"
+            class="icon-btn ghost-btn"
+            onclick="toggleSidebar()"
+            title="Toggle sidebar (⌘\)"
+            aria-label="Toggle sidebar"
+            aria-pressed="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect width="18" height="18" x="3" y="3" rx="2"/>
+        <path d="M9 3v18"/>
+      </svg>
+    </button>
+    <input id="titleInput" placeholder="Title..." />
+  </div>
   <!-- ---------- FORMATTING BAR ---------- -->
   <div class="formatting">
     <button class="md-tool" onclick="wrapSelection('**')"><b>B</b></button>
@@ -140,6 +156,23 @@
         <circle cx="12" cy="12" r="3"/>
       </svg>
     </button>
+
+    <!-- Zen mode toggle (maximize-2 icon: Lucide, ISC license) -->
+    <button type="button"
+            id="zenToggle"
+            class="icon-btn"
+            onclick="toggleZen()"
+            title="Zen mode (⌘⇧F)"
+            aria-label="Zen mode"
+            aria-pressed="false">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M15 3h6v6"/>
+        <path d="M9 21H3v-6"/>
+        <path d="m21 3-7 7"/>
+        <path d="m3 21 7-7"/>
+      </svg>
+    </button>
   </div>
 
   <!-- ---------- MAIN EDITOR ---------- -->
@@ -153,11 +186,6 @@
 
     <!-- Controls + Status -->
     <div class="controls">
-      
-      <div class="footer-status">
-        <div id="tokenMeter">🟢 0 / 128000</div>
-        <div id="wordCount">0 words</div>
-      </div>
 
       <div class="footer-actions">
         <select id="footerModelName" aria-label="Active model">
@@ -177,6 +205,35 @@
 </div>
 
 </div>
+
+<!-- ===================== STATUS BAR ===================== -->
+<footer id="statusBar" class="status-bar">
+  <div class="status-left">
+    <span id="statusLocation"></span>
+    <span id="saveStatus" class="save-status"></span>
+  </div>
+  <div class="status-right">
+    <span id="wordCount">0 words</span>
+    <span id="readingTime"></span>
+    <span id="tokenMeter" data-level="ok">0 / 128,000 tokens</span>
+  </div>
+</footer>
+
+<!-- Exit button shown only in zen mode (minimize-2 icon: Lucide, ISC license) -->
+<button type="button"
+        id="zenExit"
+        class="icon-btn ghost-btn zen-exit"
+        onclick="setZen(false)"
+        title="Exit zen mode (Esc)"
+        aria-label="Exit zen mode">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M4 14h6v6"/>
+    <path d="M20 10h-6V4"/>
+    <path d="m14 10 7-7"/>
+    <path d="m3 21 7-7"/>
+  </svg>
+</button>
 
 
 <!-- ===================== SETTINGS MODAL ===================== -->

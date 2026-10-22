@@ -1207,12 +1207,14 @@ async function updateTokenMeter() {
   const selectedModel = getModelById(settings.modelName);
   const max = selectedModel?.context || 128000;
 
-  let color = "🟢";
-  if (tokens / max > 0.9) color = "🔴";
-  else if (tokens / max > 0.7) color = "🟡";
+  let level = "ok";
+  if (tokens / max > 0.9) level = "high";
+  else if (tokens / max > 0.7) level = "warn";
 
-  document.getElementById("tokenMeter").innerText =
-    `${color} ${tokens} / ${max}`;
+  const meter = document.getElementById("tokenMeter");
+  meter.dataset.level = level;
+  meter.innerText =
+    `${tokens.toLocaleString()} / ${max.toLocaleString()} tokens`;
 }
 
 function toggleProjectMenu(e) {
@@ -2331,6 +2333,7 @@ async function saveCurrentFile() {
 
   if (data.status === "saved") {
     isDirty = false;
+    lastSavedAt = Date.now();
     fileCache[`${currentFile.section}/${currentFile.filename}`] = editor.value;
 
     const isGlobal =
@@ -3545,7 +3548,113 @@ function updateWordCount() {
   const text = editor.value.trim();
   const count = text === "" ? 0 : text.split(/\s+/).length;
   document.getElementById("wordCount").textContent = `${count.toLocaleString()} words`;
+  document.getElementById("readingTime").textContent =
+    count === 0 ? "" : `${Math.max(1, Math.round(count / 230))} min read`;
   schedulePreviewRender();
+  updateStatusBar();
+}
+
+
+// =====================
+// SIDEBAR, ZEN MODE, STATUS BAR
+// =====================
+
+let lastSavedAt = null;
+
+function setSidebarCollapsed(collapsed) {
+  document.body.classList.toggle("sidebar-collapsed", collapsed);
+  document.getElementById("sidebarToggle").setAttribute("aria-pressed", String(!collapsed));
+
+  try {
+    localStorage.setItem("sjb_sidebar_collapsed", collapsed ? "1" : "0");
+  } catch (e) {}
+}
+
+function toggleSidebar() {
+  setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed"));
+}
+
+function setZen(on) {
+  document.body.classList.toggle("zen", on);
+  document.getElementById("zenToggle").setAttribute("aria-pressed", String(on));
+  if (!on && !previewOn) editor.focus();
+}
+
+function toggleZen() {
+  setZen(!document.body.classList.contains("zen"));
+}
+
+function timeAgo(time) {
+  const seconds = Math.round((Date.now() - time) / 1000);
+  if (seconds < 10) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  return new Date(time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function updateStatusBar() {
+  const project = document.getElementById("currentProjectLabel")
+    .textContent.replace(/^\s*Project:\s*/, "").trim();
+  const file = currentFile.filename ? (titleInput.value || "Untitled") : "";
+  document.getElementById("statusLocation").textContent =
+    file ? `${project} › ${file}` : project;
+
+  const saveStatus = document.getElementById("saveStatus");
+  if (!currentFile.filename) {
+    saveStatus.textContent = "";
+  } else if (isDirty) {
+    saveStatus.textContent = "Unsaved";
+    saveStatus.dataset.state = "dirty";
+  } else {
+    saveStatus.textContent = lastSavedAt ? `Saved · ${timeAgo(lastSavedAt)}` : "Saved";
+    saveStatus.dataset.state = "saved";
+  }
+}
+
+// Keeps "Saved · 2 min ago" current and catches title edits
+setInterval(updateStatusBar, 2000);
+
+// Open every folder above the current file so its highlight is visible
+async function revealActiveFile() {
+  const { section, filename } = currentFile;
+  if (!section || !filename) return;
+
+  const tree = (section === "prompts" || section === "system")
+    ? state.global[section]
+    : state.project[section];
+
+  let changed = false;
+
+  const openPath = (items) => {
+    for (const item of items || []) {
+      if (item && item.type === "folder") {
+        if (openPath(item.items)) {
+          if (item.collapsed) {
+            item.collapsed = false;
+            changed = true;
+          }
+          return true;
+        }
+      } else if (item === filename || item?.filename === filename) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  openPath(tree);
+
+  if (changed) {
+    await fetch('/update_folder_state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ section, state: tree })
+    });
+    await renderLists();
+  }
+
+  document.querySelector(".file-row.active-file")?.scrollIntoView({ block: "nearest" });
 }
 
 
@@ -3616,11 +3725,36 @@ function togglePreview() {
 
 preview.addEventListener("dblclick", () => setPreview(false));
 
-// ⌘E / Ctrl+E toggles preview (same key as Obsidian)
+// =====================
+// KEYBOARD SHORTCUTS (⌘ on Mac, Ctrl elsewhere)
+// =====================
+// ⌘E preview (same key as Obsidian) · ⌘S save · ⌘Enter generate
+// ⌘\ sidebar · ⌘⇧F zen · Esc stops generation, then leaves zen
+
 document.addEventListener("keydown", (e) => {
-  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "e") {
+  if (!document.getElementById("settingsModal").classList.contains("hidden")) return;
+
+  const mod = (e.metaKey || e.ctrlKey) && !e.altKey;
+  const key = e.key.toLowerCase();
+
+  if (mod && !e.shiftKey && key === "e") {
     e.preventDefault();
     togglePreview();
+  } else if (mod && !e.shiftKey && key === "s") {
+    e.preventDefault();
+    saveCurrentFile();
+  } else if (mod && !e.shiftKey && e.key === "Enter") {
+    e.preventDefault();
+    if (!isGenerating) generate();
+  } else if (mod && !e.shiftKey && e.key === "\\") {
+    e.preventDefault();
+    toggleSidebar();
+  } else if (mod && e.shiftKey && key === "f") {
+    e.preventDefault();
+    toggleZen();
+  } else if (e.key === "Escape") {
+    if (isGenerating) stopGeneration();
+    else if (document.body.classList.contains("zen")) setZen(false);
   }
 });
 
@@ -3877,8 +4011,10 @@ async function openFile(section, filename) {
   titleInput.value = data.title || "";
   editor.value = data.content || "";
   isDirty = false;
+  lastSavedAt = null;
   saveSelections();
   await renderLists();
+  await revealActiveFile();
   updateTokenMeter();
   updateWordCount();
 }
@@ -3946,5 +4082,8 @@ window.onload = async () => {
 
   try {
     if (localStorage.getItem("sjb_preview") === "1") setPreview(true);
+    if (localStorage.getItem("sjb_sidebar_collapsed") === "1") setSidebarCollapsed(true);
   } catch (e) {}
+
+  updateStatusBar();
 };
