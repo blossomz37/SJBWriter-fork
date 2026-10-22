@@ -10,6 +10,22 @@
   --hover: #eeeeee;
   --active: #dbeafe;
   --accent: #3b82f6;
+
+  --input-bg: #ffffff;
+  --input-text: #000000;
+  --input-border: #cccccc;
+  --placeholder: rgba(0,0,0,0.45);
+
+  --scrollbar: #c4c4c4;
+  --scrollbar-hover: #9a9a9a;
+
+  /* Select chevrons: dark stroke for light themes, light stroke for dark themes */
+  --chevron-on-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --chevron-on-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ccc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  --chevron: var(--chevron-on-light);
+
+  /* Editor text column width */
+  --editor-measure: 70ch;
 }
 
 body.dark {
@@ -23,6 +39,14 @@ body.dark {
   --hover: #333;
   --active: #3b82f6;
   --accent: #3b82f6;
+
+  --input-bg: rgb(95, 95, 95);
+  --input-text: white;
+  --input-border: rgba(255,255,255,0.15);
+  --placeholder: rgba(255,255,255,0.55);
+  --scrollbar: rgb(110,110,110);
+  --scrollbar-hover: rgb(140,140,140);
+  --chevron: var(--chevron-on-dark);
 }
 
 body.crimson {
@@ -36,12 +60,20 @@ body.crimson {
   --hover: #3d1a1a;
   --active: #8B0000;
   --accent: #cc2222;
+
+  --input-bg: #3a1f1f;
+  --input-text: #f5e0e0;
+  --input-border: #8B0000;
+  --placeholder: rgba(245,224,224,0.55);
+  --scrollbar: #8B0000;
+  --scrollbar-hover: #cc2222;
+  --chevron: var(--chevron-on-dark);
 }
 
 body.dark-stellar {
   --bg: #0d1117;
   --text: #e5e5e5;
-   --text-muted: #91a4bb;
+  --text-muted: #91a4bb;
   --panel-text: #e0eaf5;
   --panel: #1a2332;
   --surface: #243448;
@@ -49,6 +81,14 @@ body.dark-stellar {
   --hover: #1e2d42;
   --active: #3a6496;
   --accent: #4a7ab5;
+
+  --input-bg: #243448;
+  --input-text: #e0eaf5;
+  --input-border: #2a4a6e;
+  --placeholder: rgba(224,234,245,0.55);
+  --scrollbar: #3a6496;
+  --scrollbar-hover: #4a7ab5;
+  --chevron: var(--chevron-on-dark);
 }
 
 body.light-stellar {
@@ -62,113 +102,77 @@ body.light-stellar {
   --hover: #cce0f5;
   --active: #4a90d9;
   --accent: #2a7fd4;
+
+  --input-bg: #ffffff;
+  --input-text: #000000;
+  --input-border: #7ab0e0;
+  --placeholder: rgba(0,0,0,0.45);
+  --scrollbar: #4a90d9;
+  --scrollbar-hover: #2a7fd4;
 }
 
-body.dark input,
-body.dark textarea,
-body.dark select {
-  background: rgb(95, 95, 95);
-  color: white;
-  border: 1px solid rgba(255,255,255,0.15);
+
+/* ===================== FORM FIELDS ===================== */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+  border: 1px solid var(--input-border);
+  font-family: inherit;
 }
 
-body.dark input::placeholder,
-body.dark textarea::placeholder {
-  color: rgba(255,255,255,0.55);
+input::placeholder,
+textarea::placeholder {
+  color: var(--placeholder);
 }
 
-body.crimson input,
-body.crimson textarea,
-body.crimson select {
-  background: #3a1f1f;
-  color: #f5e0e0;
-  border: 1px solid #8B0000;
+/* Own chevron with room on the right, so the caret never hugs the edge */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  padding: 4px 30px 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
-body.crimson input::placeholder,
-body.crimson textarea::placeholder {
-  color: rgba(245,224,224,0.55);
-}
 
-body.dark-stellar input,
-body.dark-stellar textarea,
-body.dark-stellar select {
-  background: #243448;
-  color: #e0eaf5;
-  border: 1px solid #2a4a6e;
-}
-
-body.dark-stellar input::placeholder,
-body.dark-stellar textarea::placeholder {
-  color: rgba(224,234,245,0.55);
+/* ===================== SCROLLBARS ===================== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 
 /* Webkit browsers (Safari/Chrome/Edge) */
-
-body.dark ::-webkit-scrollbar {
-  width: 10px;
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-body.dark ::-webkit-scrollbar-track {
-  background: rgb(45,45,45);
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-body.dark ::-webkit-scrollbar-thumb {
-  background: rgb(110,110,110);
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar);
+  border: 2px solid transparent;
   border-radius: 8px;
+  background-clip: content-box;
 }
 
-body.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgb(140,140,140);
-}
-
-body.crimson ::-webkit-scrollbar {
-  width: 10px;
-}
-body.crimson ::-webkit-scrollbar-track {
-  background: #1a0a0a;
-}
-body.crimson ::-webkit-scrollbar-thumb {
-  background: #8B0000;
-  border-radius: 8px;
-}
-body.crimson ::-webkit-scrollbar-thumb:hover {
-  background: #cc2222;
-}
-
-body.dark-stellar ::-webkit-scrollbar {
-  width: 10px;
-}
-body.dark-stellar ::-webkit-scrollbar-track {
-  background: #0d1117;
-}
-body.dark-stellar ::-webkit-scrollbar-thumb {
-  background: #3a6496;
-  border-radius: 8px;
-}
-body.dark-stellar ::-webkit-scrollbar-thumb:hover {
-  background: #4a7ab5;
-}
-
-body.light-stellar ::-webkit-scrollbar {
-  width: 10px;
-}
-body.light-stellar ::-webkit-scrollbar-track {
-  background: #ddeeff;
-}
-body.light-stellar ::-webkit-scrollbar-thumb {
-  background: #4a90d9;
-  border-radius: 8px;
-}
-body.light-stellar ::-webkit-scrollbar-thumb:hover {
-  background: #2a7fd4;
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-hover);
 }
 
 
 /* ===================== GLOBAL ELEMENTS ===================== */
 body {
   margin: 0;
-  font-family: Arial;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg);
   color: var(--text);
 }
@@ -180,15 +184,29 @@ button {
   color: var(--text);
   cursor: pointer;
   border-radius: 6px;
+  font-family: inherit;
 }
 
 button:hover {
   background-color: var(--hover);
 }
 
+/* Quiet "+" and folder buttons next to section labels */
 .section h3 button {
-  margin-left: 6px;
-  font-weight: bold;
+  margin-left: 4px;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: normal;
+  border-color: transparent;
+  background-color: transparent;
+  opacity: 0.7;
+}
+
+.section h3 button:hover {
+  border-color: var(--border);
+  background-color: var(--hover);
+  opacity: 1;
 }
 
 
@@ -200,23 +218,26 @@ button:hover {
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  padding: 10px; /* ← adds global breathing room */
   box-sizing: border-box;
 }
 
 
+/* Sidebar zone */
 .left {
   width: 30%;
   border-right: 1px solid var(--border);
+  background-color: var(--panel);
   display: flex;
   flex-direction: column;
-  padding-right: 8px;
+  padding: 10px 8px;
+  box-sizing: border-box;
   min-height: 0;
   overflow: hidden;
 }
 
 .left h2 {
-  font-size: 18px;
+  font-size: 15px;
+  font-weight: 600;
   margin: 4px 0;
   color: var(--panel-text);
 }
@@ -748,9 +769,12 @@ input[type="radio"] {
 
 
 
-.modal-content input,
-.modal-content select {
+.modal-content input {
   padding: 6px;
+}
+
+.modal-content select {
+  padding: 6px 30px 6px 8px;
 }
 
 .modal-actions {
@@ -956,27 +980,39 @@ input[type="radio"] {
   flex: 20 20 0;
 }
 
+/* Section labels: small caps style, so file names carry the weight */
 .section h3 {
   position: sticky;
   top: 0;
   z-index: 5;
   background-color: var(--panel);
   margin: 0;
-  padding: 4px 8px;
-  font-size: 16px;
-  color: var(--panel-text);
+  padding: 8px 6px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
 }
 
 
+/* Sidebar groups are divided by a line, not boxed */
 .section-group {
-  border: 1px solid var(--border);
-  margin-bottom: 10px;
-  padding: 6px;
-  border-radius: 8px;
-  background-color: var(--panel);
+  padding: 4px 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.section-group + .section-group {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.section-group .section:last-child {
+  border-bottom: none;
 }
 
 .section-group:nth-of-type(1) {
@@ -1001,11 +1037,12 @@ input[type="radio"] {
 }
 
 
+/* Writing zone */
 .right {
   width: 70%;
   display: flex;
   flex-direction: column;
-  padding-left: 8px;
+  background-color: var(--bg);
   min-height: 0;
 }
 
@@ -1045,7 +1082,8 @@ input[type="radio"] {
 }
 
 .formatting select {
-  padding: 2px 4px;
+  padding: 2px 26px 2px 8px;
+  background-position: right 8px center;
   font-size: 13px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -1059,17 +1097,17 @@ input[type="radio"] {
 }
 
 #fontSizeSelect {
-  min-width: 52px;
+  min-width: 64px;
 }
 
 
+/* The editor spans the full zone (scrollbar at the window edge),
+   and side padding centers a readable text column of --editor-measure */
 #editor {
   flex: 1;
   width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
 
-  padding: 16px 24px 16px 18px;
+  padding: 24px max(24px, calc((100% - var(--editor-measure)) / 2));
 
   background-color: var(--bg);
   color: var(--text);
@@ -1078,7 +1116,6 @@ input[type="radio"] {
   line-height: 1.65;
 
   border: none;
-  border-bottom: 1px solid var(--border);
 
   outline: none;
   resize: none;
@@ -1086,9 +1123,11 @@ input[type="radio"] {
 }
 
 
+/* AI dock zone */
 .bottom {
-  padding: 10px;
-  border-top: 1px solid #ccc;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  background-color: var(--panel);
 }
 
 
@@ -1144,13 +1183,17 @@ input[type="radio"] {
 #promptBox {
   background-color: var(--bg);
   color: var(--text);
-  border-color: var(--border);
   width: 100%;
   height: 80px;
   padding: 10px;
   line-height: 1.4;
-  font-size: 16px;
-  border: none;
-  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-sizing: border-box;
   outline: none;
+}
+
+#promptBox:focus {
+  border-color: var(--accent);
 }
