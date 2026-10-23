@@ -147,6 +147,7 @@
       <button type="button" class="icon-btn ghost-btn" onclick="findStep(1)" data-tip="Next (↵)" aria-label="Next match"><svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></button>
       <button type="button" id="findCase" class="icon-btn ghost-btn find-toggle" onclick="toggleFindOption('matchCase')" data-tip="Match case" aria-label="Match case" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-case-sensitive"/></svg></button>
       <button type="button" id="findWord" class="icon-btn ghost-btn find-toggle" onclick="toggleFindOption('wholeWord')" data-tip="Whole word" aria-label="Whole word" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-whole-word"/></svg></button>
+      <button type="button" class="link-btn find-all" onclick="openProjectSearch(findInput.value)">Search all documents…</button>
       <button type="button" class="icon-btn ghost-btn tip-end find-close" onclick="closeFindBar()" data-tip="Close (Esc)" aria-label="Close find"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
     <div id="replaceRow" class="find-row find-replace hidden">
@@ -353,6 +354,33 @@
       <button type="button" class="request-copy" onclick="copyRequestPreview(this)">Copy</button>
       <button type="button" onclick="closeRequestPreview()">Close</button>
       <button type="button" class="primary-btn" onclick="closeRequestPreview(); generate();">Generate</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SEARCH AND REPLACE MODAL (project menu, find bar) ===================== -->
+<div id="searchModal" class="modal hidden">
+  <div class="modal-content search-content">
+    <button type="button" class="icon-btn ghost-btn modal-close tip-end" onclick="closeProjectSearch()" data-tip="Close (Esc)" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    <h2>Search and replace</h2>
+    <div class="search-fields">
+      <label class="find-field"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input id="searchQuery" type="text" placeholder="Find" aria-label="Find" autocomplete="off" spellcheck="false" /></label>
+      <label class="find-field"><input id="searchReplacement" type="text" placeholder="Replace with" aria-label="Replace with" autocomplete="off" spellcheck="false" /></label>
+    </div>
+    <div class="search-options">
+      <label><input type="checkbox" id="searchMatchCase" /> Match case</label>
+      <label><input type="checkbox" id="searchWholeWord" /> Whole word</label>
+      <span class="search-where">Look in:</span>
+      <label><input type="checkbox" name="searchSection" value="writing" checked /> Writing</label>
+      <label><input type="checkbox" name="searchSection" value="background" checked /> Background</label>
+      <label><input type="checkbox" name="searchSection" value="system" /> System</label>
+      <label><input type="checkbox" name="searchSection" value="prompts" /> Prompts</label>
+    </div>
+    <p id="searchSummary" class="import-summary"></p>
+    <div id="searchResults" class="search-results"></div>
+    <div class="modal-actions">
+      <button type="button" onclick="closeProjectSearch()">Close</button>
+      <button type="button" id="searchReplaceBtn" class="primary-btn" onclick="replaceInProject(this)" disabled>Replace</button>
     </div>
   </div>
 </div>

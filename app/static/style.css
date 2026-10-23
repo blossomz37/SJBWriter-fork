@@ -1751,6 +1751,98 @@ body.zen .find-bar {
   filter: brightness(1.08);
 }
 
+/* ===================== SEARCH AND REPLACE (project) ===================== */
+/* Sized to its results; a long list scrolls inside */
+.search-content {
+  width: min(760px, 94vw);
+  height: auto;
+}
+
+.search-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search-fields .find-field {
+  flex: 1 1 240px;
+  max-width: none;
+}
+
+.search-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font-size: 13px;
+}
+
+.search-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.search-where {
+  margin-left: 8px;
+  color: var(--text-muted);
+}
+
+.search-results {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 56vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.search-results:empty {
+  display: none;
+}
+
+.search-doc {
+  padding: 8px 12px;
+}
+
+.search-doc + .search-doc {
+  border-top: 1px solid var(--border);
+}
+
+.search-doc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.search-doc-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.search-snippet {
+  margin: 2px 0 2px 26px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.search-snippet .find-hit {
+  color: var(--text);
+}
+
+.search-more {
+  font-style: italic;
+}
+
+.find-all {
+  margin-left: 6px;
+  font-size: 12px;
+}
+
 /* ===================== IMPORT ===================== */
 .import-content {
   width: min(620px, 94vw);

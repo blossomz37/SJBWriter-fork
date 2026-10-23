@@ -169,6 +169,10 @@ function toggleProjectMenu(e) {
   trashItem.textContent = "Trash…";
   trashItem.onclick = () => openTrash();
 
+  const searchItem = document.createElement("div");
+  searchItem.textContent = "Search and replace…";
+  searchItem.onclick = () => openProjectSearch();
+
   const importItem = document.createElement("div");
   importItem.textContent = "Import…";
   importItem.onclick = () => openImport();
@@ -181,6 +185,7 @@ function toggleProjectMenu(e) {
   menu.appendChild(rename);
   menu.appendChild(duplicateProjectItem);
   menu.appendChild(del);
+  menu.appendChild(searchItem);
   menu.appendChild(importItem);
   menu.appendChild(exportItem);
   menu.appendChild(trashItem);
@@ -628,6 +633,174 @@ async function duplicateProject() {
   await loadProjects();
   showToast(`Duplicated as "${data.title}". Find it in the project menu.`, "info");
 }
+
+// =====================
+// SEARCH AND REPLACE across the project: every match listed before replacing
+// =====================
+
+let searchResults = [];
+let searchTimer = null;
+
+function searchOptions() {
+  return {
+    query: document.getElementById("searchQuery").value,
+    matchCase: document.getElementById("searchMatchCase").checked,
+    wholeWord: document.getElementById("searchWholeWord").checked,
+    sections: [...document.querySelectorAll('input[name="searchSection"]:checked')].map(i => i.value)
+  };
+}
+
+async function openProjectSearch(query) {
+  if (isDirty) await saveCurrentFile();   // search the newest text
+  if (typeof query === "string" && query) document.getElementById("searchQuery").value = query;
+  // Start from the find bar's options when coming from it
+  if (findBarOpen()) {
+    document.getElementById("searchMatchCase").checked = findState.matchCase;
+    document.getElementById("searchWholeWord").checked = findState.wholeWord;
+  }
+  document.getElementById("searchModal").classList.remove("hidden");
+  const field = document.getElementById("searchQuery");
+  field.focus();
+  field.select();
+  await runProjectSearch();
+}
+
+function closeProjectSearch() {
+  document.getElementById("searchModal").classList.add("hidden");
+}
+
+async function runProjectSearch() {
+  const options = searchOptions();
+  const { data } = await postJSON('/search', options);
+  searchResults = data.documents || [];
+
+  const summary = document.getElementById("searchSummary");
+  const n = (count, word) => `${count.toLocaleString()} ${word}${count === 1 ? "" : (word === "match" ? "es" : "s")}`;
+  summary.textContent = !options.query ? ""
+    : searchResults.length ? `${n(data.total, "match")} in ${n(searchResults.length, "document")}.`
+    : "No matches.";
+
+  const list = document.getElementById("searchResults");
+  list.innerHTML = "";
+  for (const doc of searchResults) {
+    const group = document.createElement("div");
+    group.className = "search-doc";
+
+    const head = document.createElement("div");
+    head.className = "search-doc-head";
+    const tick = document.createElement("input");
+    tick.type = "checkbox";
+    tick.checked = true;
+    tick.setAttribute("aria-label", `Replace in ${doc.title}`);
+    tick.addEventListener("change", updateReplaceButton);
+    doc.tick = tick;
+    const title = document.createElement("button");
+    title.type = "button";
+    title.className = "link-btn search-doc-title";
+    title.textContent = doc.title;
+    title.onclick = () => openSearchResult(doc, options);
+    const where = document.createElement("span");
+    where.className = "history-meta";
+    where.textContent = [TRASH_PLACES[doc.section], ...doc.folders].join(" › ") + ` · ${n(doc.count, "match")}`;
+    head.append(tick, title, where);
+    group.appendChild(head);
+
+    for (const s of doc.snippets) {
+      const line = document.createElement("div");
+      line.className = "search-snippet";
+      const mark = document.createElement("mark");
+      mark.className = "find-hit";
+      mark.textContent = s.match;
+      line.append(document.createTextNode(s.before), mark, document.createTextNode(s.after));
+      group.appendChild(line);
+    }
+    if (doc.count > doc.snippets.length) {
+      const more = document.createElement("div");
+      more.className = "search-snippet search-more";
+      more.textContent = `and ${doc.count - doc.snippets.length} more`;
+      group.appendChild(more);
+    }
+    list.appendChild(group);
+  }
+  updateReplaceButton();
+}
+
+function chosenResults() {
+  return searchResults.filter(doc => doc.tick?.checked);
+}
+
+function updateReplaceButton() {
+  const chosen = chosenResults();
+  const button = document.getElementById("searchReplaceBtn");
+  button.disabled = chosen.length === 0;
+  button.textContent = chosen.length
+    ? `Replace in ${chosen.length} document${chosen.length === 1 ? "" : "s"}`
+    : "Replace";
+}
+
+async function replaceInProject(button) {
+  const options = searchOptions();
+  const chosen = chosenResults();
+  const matches = chosen.reduce((sum, doc) => sum + doc.count, 0);
+  const replacement = document.getElementById("searchReplacement").value;
+  const what = replacement ? `with “${replacement}”` : "with nothing (they are deleted)";
+  const agreed = await askConfirm(
+    `Replace ${matches} match${matches === 1 ? "" : "es"} in ${chosen.length} document${chosen.length === 1 ? "" : "s"}?`,
+    `“${options.query}” is replaced ${what}. Each document's current text is kept in Version history first.`,
+    { okLabel: "Replace" }
+  );
+  if (!agreed) return;
+
+  if (isDirty) await saveCurrentFile();
+  button.disabled = true;
+  try {
+    const { ok, data } = await postJSON('/replace_all', {
+      ...options,
+      replacement,
+      targets: chosen.map(doc => ({ section: doc.section, filename: doc.filename }))
+    });
+    if (!ok) {
+      showToast(data.error || "Replace failed");
+      return;
+    }
+    // Reload lists and the open document, which may have changed
+    const open = currentFile.filename && data.changed.some(c => c.section === currentFile.section && c.filename === currentFile.filename);
+    await loadAll();
+    if (open) await openFile(currentFile.section, currentFile.filename);
+    showToast(`Replaced ${data.replaced} match${data.replaced === 1 ? "" : "es"} in ${data.documents} document${data.documents === 1 ? "" : "s"}. Old text is in Version history.`, "info");
+    await runProjectSearch();
+  } finally {
+    updateReplaceButton();
+  }
+}
+
+// Open a result with the find bar showing the same search
+async function openSearchResult(doc, options) {
+  closeProjectSearch();
+  await openFile(doc.section, doc.filename);
+  editor.setSelectionRange(0, 0);
+  findInput.value = options.query;
+  for (const [option, id] of [["matchCase", "findCase"], ["wholeWord", "findWord"]]) {
+    findState[option] = options[option];
+    document.getElementById(id).setAttribute("aria-pressed", String(options[option]));
+  }
+  openFindBar(false);
+}
+
+for (const id of ["searchQuery", "searchMatchCase", "searchWholeWord"]) {
+  document.getElementById(id).addEventListener(id === "searchQuery" ? "input" : "change", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(runProjectSearch, 200);
+  });
+}
+document.querySelectorAll('input[name="searchSection"]').forEach(box => box.addEventListener("change", runProjectSearch));
+document.getElementById("searchQuery").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    runProjectSearch();
+  }
+});
+
 
 // =====================
 // IMPORT: documents or a whole folder (Markdown, text, Word), preview first
