@@ -542,6 +542,11 @@ async function openFile(section, filename) {
   await revealActiveFile();
   updateTokenMeter();
   updateWordCount();
+  // A different document: recount the search, without jumping to a match
+  if (findBarOpen()) {
+    findState.origin = 0;
+    updateFind({ select: false });
+  }
 }
 
 let isDirty = false;
@@ -589,3 +594,220 @@ window.addEventListener("beforeunload", (e) => {
     e.returnValue = "";
   }
 });
+
+
+// =====================
+// FIND AND REPLACE in the open document (⌘F, ⌘⇧H)
+// =====================
+
+const findState = { matchCase: false, wholeWord: false, matches: [], current: -1, origin: 0 };
+const findBar = document.getElementById("findBar");
+const findInput = document.getElementById("findInput");
+const replaceInput = document.getElementById("replaceInput");
+
+function findBarOpen() {
+  return !findBar.classList.contains("hidden");
+}
+
+// The search as a pattern: the text taken literally; "whole word" means no
+// letter or digit right before or after it (in any language)
+function findPattern(query) {
+  if (!query) return null;
+  const literal = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const body = findState.wholeWord ? `(?<![\\p{L}\\p{N}_])${literal}(?![\\p{L}\\p{N}_])` : literal;
+  return new RegExp(body, findState.matchCase ? "gu" : "giu");
+}
+
+function updateFind({ select = true, from = findState.origin } = {}) {
+  const pattern = findPattern(findInput.value);
+  findState.matches = pattern ? [...editor.value.matchAll(pattern)].map(m => [m.index, m.index + m[0].length]) : [];
+  const n = findState.matches.length;
+  if (!n) {
+    findState.current = -1;
+  } else {
+    const next = findState.matches.findIndex(([start]) => start >= from);
+    findState.current = next === -1 ? 0 : next;
+  }
+  document.getElementById("findCount").textContent =
+    !findInput.value ? "" : n ? `${findState.current + 1} of ${n}` : "No matches";
+  findBar.classList.toggle("no-match", Boolean(findInput.value) && !n);
+  if (select && n) showMatch();
+  else renderFindHighlights();
+}
+
+// Select the current match and scroll it into view, keeping the typing focus where it is
+function showMatch() {
+  const [start, end] = findState.matches[findState.current];
+  editor.setSelectionRange(start, end);
+  editor.scrollTop = Math.max(0, caretOffset(start) - editor.clientHeight / 3);
+  renderFindHighlights();
+}
+
+// A text box cannot color words, and hides its selection while the cursor is
+// in the find field. So a see-through copy of the text lies exactly on top of
+// the editor: its letters are invisible, only the marks behind the matches show.
+const findHighlights = document.createElement("div");
+findHighlights.className = "find-highlights hidden";
+findHighlights.setAttribute("aria-hidden", "true");
+editor.insertAdjacentElement("afterend", findHighlights);
+
+function renderFindHighlights() {
+  const show = findBarOpen() && findState.matches.length > 0 && !previewOn;
+  findHighlights.classList.toggle("hidden", !show);
+  if (!show) return;
+
+  const style = getComputedStyle(editor);
+  for (const prop of ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing",
+                      "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "tabSize"]) {
+    findHighlights.style[prop] = style[prop];
+  }
+  Object.assign(findHighlights.style, {
+    top: `${editor.offsetTop}px`, left: `${editor.offsetLeft}px`,
+    width: `${editor.clientWidth}px`, height: `${editor.clientHeight}px`
+  });
+
+  const text = editor.value;
+  const parts = [];
+  let at = 0;
+  findState.matches.forEach(([start, end], i) => {
+    parts.push(document.createTextNode(text.slice(at, start)));
+    const mark = document.createElement("mark");
+    mark.className = i === findState.current ? "find-hit current" : "find-hit";
+    mark.textContent = text.slice(start, end);
+    parts.push(mark);
+    at = end;
+  });
+  // A trailing space keeps the last line's height the same as in the editor
+  parts.push(document.createTextNode(text.slice(at) + " "));
+  findHighlights.replaceChildren(...parts);
+  findHighlights.scrollTop = editor.scrollTop;
+}
+
+editor.addEventListener("scroll", () => {
+  if (!findHighlights.classList.contains("hidden")) findHighlights.scrollTop = editor.scrollTop;
+});
+new ResizeObserver(() => renderFindHighlights()).observe(editor);
+
+// How far down the editor a position in the text sits, measured on a hidden copy
+let caretMirror = null;
+function caretOffset(position) {
+  if (!caretMirror) {
+    caretMirror = document.createElement("div");
+    caretMirror.setAttribute("aria-hidden", "true");
+    document.body.appendChild(caretMirror);
+  }
+  const style = getComputedStyle(editor);
+  for (const prop of ["fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing",
+                      "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "boxSizing", "tabSize"]) {
+    caretMirror.style[prop] = style[prop];
+  }
+  Object.assign(caretMirror.style, {
+    position: "absolute", visibility: "hidden", top: "0", left: "-9999px",
+    width: `${editor.clientWidth}px`, whiteSpace: "pre-wrap", overflowWrap: "break-word"
+  });
+  caretMirror.textContent = editor.value.slice(0, position);
+  const marker = document.createElement("span");
+  marker.textContent = "\u200b";
+  caretMirror.appendChild(marker);
+  return marker.offsetTop;
+}
+
+function openFindBar(withReplace = false) {
+  if (!currentFile.filename) return;
+  if (previewOn) setPreview(false);
+  findBar.classList.remove("hidden");
+  setReplaceRow(withReplace || !document.getElementById("replaceRow").classList.contains("hidden"));
+  // Selected text (one short line) becomes the search
+  const chosen = editor.value.slice(editor.selectionStart, editor.selectionEnd);
+  if (chosen && !chosen.includes("\n") && chosen.length < 100) findInput.value = chosen;
+  findState.origin = editor.selectionStart;
+  (withReplace && findInput.value ? replaceInput : findInput).focus();
+  findInput.select();
+  updateFind();
+}
+
+function closeFindBar() {
+  findBar.classList.add("hidden");
+  renderFindHighlights();
+  editor.focus();
+}
+
+function setReplaceRow(show) {
+  document.getElementById("replaceRow").classList.toggle("hidden", !show);
+  const toggle = document.getElementById("replaceToggle");
+  toggle.setAttribute("aria-expanded", String(show));
+  toggle.querySelector("use").setAttribute("href", show ? "#i-chevron-down" : "#i-chevron-right");
+  fitToolbars();
+}
+
+function findStep(direction) {
+  if (!findState.matches.length) return updateFind();
+  const n = findState.matches.length;
+  findState.current = (findState.current + direction + n) % n;
+  findState.origin = findState.matches[findState.current][0];
+  document.getElementById("findCount").textContent = `${findState.current + 1} of ${n}`;
+  showMatch();
+}
+
+
+function toggleFindOption(option) {
+  findState[option] = !findState[option];
+  document.getElementById(option === "matchCase" ? "findCase" : "findWord")
+    .setAttribute("aria-pressed", String(findState[option]));
+  updateFind();
+}
+
+// Typing through the editor keeps ⌘Z working: one undo step per replace
+function typeOver(start, end, text) {
+  const scroll = editor.scrollTop;
+  editor.focus();
+  editor.setSelectionRange(start, end);
+  if (!document.execCommand(text ? "insertText" : "delete", false, text)) {
+    editor.setRangeText(text, start, end, "end");
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  editor.scrollTop = scroll;
+}
+
+function replaceCurrent() {
+  if (findState.current < 0) return updateFind();
+  const [start, end] = findState.matches[findState.current];
+  // Replace only what is selected and still matches; otherwise just show the match
+  if (editor.selectionStart !== start || editor.selectionEnd !== end) return showMatch();
+  typeOver(start, end, replaceInput.value);
+  findState.origin = start + replaceInput.value.length;
+  updateFind();
+  replaceInput.focus();
+}
+
+function replaceAllInDocument() {
+  const pattern = findPattern(findInput.value);
+  const count = pattern ? [...editor.value.matchAll(pattern)].length : 0;
+  if (!count) return;
+  const replacement = replaceInput.value;
+  typeOver(0, editor.value.length, editor.value.replace(pattern, () => replacement));
+  findState.origin = 0;
+  updateFind({ select: false });
+  showToast(`Replaced ${count} match${count === 1 ? "" : "es"}. ⌘Z undoes it.`, "info");
+  replaceInput.focus();
+}
+
+findInput.addEventListener("input", () => updateFind());
+findInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    findStep(e.shiftKey ? -1 : 1);
+  }
+});
+replaceInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    if (e.metaKey || e.ctrlKey) replaceAllInDocument();
+    else replaceCurrent();
+  }
+});
+// Edits in the document keep the count right
+editor.addEventListener("input", () => {
+  if (findBarOpen()) updateFind({ select: false, from: editor.selectionStart });
+});
+

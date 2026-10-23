@@ -296,6 +296,7 @@ const MODAL_CLOSERS = {
   requestModal: () => closeRequestPreview(),
   exportModal: () => closeExport(),
   importModal: () => closeImport(),
+  searchModal: () => closeProjectSearch(),
   askModal: () => finishAsk(null)
 };
 

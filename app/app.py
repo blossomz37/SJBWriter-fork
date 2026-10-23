@@ -12,12 +12,13 @@ Each part is one file with one job:
   models     the model list and OpenRouter's price list
   export     Markdown and Word export
   importer   importing documents and folders (Markdown, text, Word)
+  search     search and replace across the project
   settings   API key, app settings, Books folder
 """
 
 from flask import Flask, render_template
 
-from sjb import ai, documents, export, history, importer, models, projects, settings
+from sjb import ai, documents, export, history, importer, models, projects, search, settings
 from sjb.migrate import accept_old_document_names, migrate_once
 from sjb.storage import reject_unsafe_names
 
@@ -32,7 +33,7 @@ app.before_request(migrate_once)
 app.before_request(accept_old_document_names)
 app.before_request(reject_unsafe_names)
 
-for part in (documents, projects, history, ai, models, export, importer, settings):
+for part in (documents, projects, history, ai, models, export, importer, search, settings):
     app.register_blueprint(part.bp)
 
 

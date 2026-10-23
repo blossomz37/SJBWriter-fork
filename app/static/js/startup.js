@@ -30,6 +30,23 @@ document.addEventListener("keydown", (e) => {
   const mod = (e.metaKey || e.ctrlKey) && !e.altKey;
   const key = e.key.toLowerCase();
 
+  if (mod && !e.shiftKey && key === "f" && currentFile.filename) {
+    e.preventDefault();
+    openFindBar(false);
+    return;
+  } else if (mod && e.shiftKey && key === "h" && currentFile.filename) {
+    e.preventDefault();
+    openFindBar(true);
+    return;
+  } else if (mod && key === "g" && findBarOpen()) {
+    e.preventDefault();
+    findStep(e.shiftKey ? -1 : 1);
+    return;
+  } else if (e.key === "Escape" && findBarOpen() && findBar.contains(document.activeElement)) {
+    closeFindBar();
+    return;
+  }
+
   if (mod && !e.shiftKey && key === "e") {
     e.preventDefault();
     togglePreview();
