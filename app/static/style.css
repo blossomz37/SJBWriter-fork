@@ -1593,6 +1593,124 @@ body.zen .zen-exit {
   margin-right: auto;
 }
 
+/* ===================== FIND AND REPLACE (open document) ===================== */
+.find-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px var(--gutter);
+  border-bottom: 1px solid var(--border);
+  background-color: var(--panel);
+}
+
+.find-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.find-field {
+  display: flex;
+  flex: 1 1 200px;
+  max-width: 340px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background-color: var(--input-bg);
+  color: var(--text-muted);
+}
+
+.find-field:focus-within {
+  border-color: var(--accent);
+}
+
+.find-field input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+  background: transparent;
+  color: var(--input-text);
+  font-size: 14px;
+}
+
+.find-bar.no-match #findInput {
+  color: #dc2626;
+}
+
+body.mode-dark .find-bar.no-match #findInput {
+  color: #f87171;
+}
+
+.find-count {
+  min-width: 72px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.find-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background-color: var(--active);
+  color: var(--accent);
+}
+
+.find-close {
+  margin-left: auto;
+}
+
+/* The replace row lines up under the search field, past the toggle arrow */
+.find-replace {
+  padding-left: 34px;
+}
+
+/* See-through copy of the text on top of the editor: only the match marks show */
+.right {
+  position: relative;
+}
+
+.find-highlights {
+  position: absolute;
+  z-index: 1;
+  overflow: hidden;
+  box-sizing: border-box;
+  margin: 0;
+  color: transparent;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  pointer-events: none;
+}
+
+.find-hit {
+  border-radius: 2px;
+  background-color: color-mix(in srgb, #facc15 38%, transparent);
+  color: transparent;
+}
+
+.find-hit.current {
+  background-color: color-mix(in srgb, #f97316 55%, transparent);
+  outline: 1px solid color-mix(in srgb, #ea580c 70%, transparent);
+}
+
+body.mode-dark .find-hit {
+  background-color: color-mix(in srgb, #facc15 30%, transparent);
+}
+
+body.mode-dark .find-hit.current {
+  background-color: color-mix(in srgb, #f97316 45%, transparent);
+}
+
+/* The search lives in the editor; zen keeps it if it was open */
+body.zen .find-bar {
+  border-bottom-color: transparent;
+}
+
 /* ===================== QUESTION WINDOW (askText / askConfirm) ===================== */
 .ask-modal {
   z-index: 10000;   /* above a window it was opened from, such as Settings */

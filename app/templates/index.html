@@ -137,6 +137,25 @@
     <button type="button" id="zenToggle" class="icon-btn tip-end" onclick="toggleZen()" data-tip="Zen mode (⌘⇧F)" aria-label="Zen mode" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-maximize-2"/></svg></button>
   </div>
 
+  <!-- Find and replace in the open document (⌘F, ⌘⇧H) -->
+  <div id="findBar" class="find-bar hidden" role="search" aria-label="Find in document">
+    <div class="find-row">
+      <button type="button" id="replaceToggle" class="icon-btn ghost-btn" onclick="setReplaceRow(document.getElementById('replaceRow').classList.contains('hidden'))" data-tip="Replace (⌘⇧H)" aria-label="Show replace" aria-expanded="false"><svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
+      <label class="find-field"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input id="findInput" type="text" placeholder="Find" aria-label="Find" autocomplete="off" spellcheck="false" /></label>
+      <span id="findCount" class="find-count" aria-live="polite"></span>
+      <button type="button" class="icon-btn ghost-btn" onclick="findStep(-1)" data-tip="Previous (⇧↵)" aria-label="Previous match"><svg class="icon" aria-hidden="true"><use href="#i-chevron-up"/></svg></button>
+      <button type="button" class="icon-btn ghost-btn" onclick="findStep(1)" data-tip="Next (↵)" aria-label="Next match"><svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></button>
+      <button type="button" id="findCase" class="icon-btn ghost-btn find-toggle" onclick="toggleFindOption('matchCase')" data-tip="Match case" aria-label="Match case" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-case-sensitive"/></svg></button>
+      <button type="button" id="findWord" class="icon-btn ghost-btn find-toggle" onclick="toggleFindOption('wholeWord')" data-tip="Whole word" aria-label="Whole word" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-whole-word"/></svg></button>
+      <button type="button" class="icon-btn ghost-btn tip-end find-close" onclick="closeFindBar()" data-tip="Close (Esc)" aria-label="Close find"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <div id="replaceRow" class="find-row find-replace hidden">
+      <label class="find-field"><input id="replaceInput" type="text" placeholder="Replace with" aria-label="Replace with" autocomplete="off" spellcheck="false" /></label>
+      <button type="button" onclick="replaceCurrent()">Replace</button>
+      <button type="button" onclick="replaceAllInDocument()">Replace all</button>
+    </div>
+  </div>
+
   <!-- ---------- MAIN EDITOR ---------- -->
   <textarea id="editor"></textarea>
   <!-- Rendered Markdown view; shown instead of the editor in preview mode -->
