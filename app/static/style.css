@@ -720,7 +720,7 @@ input[type="radio"] {
   height: auto;
   max-width: 100%;
   margin-bottom: 12px;
-  border-radius: 18px;
+  object-fit: contain;
 }
 
 #settingsAboutView h3 {
@@ -2413,9 +2413,9 @@ body.ai-panel-open .toast-stack {
 }
 
 .top-bar-logo {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
 }
 
 .top-bar-version {

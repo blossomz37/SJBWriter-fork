@@ -7,16 +7,16 @@
   <link rel="icon"
       type="image/png"
       sizes="32x32"
-      href="{{ url_for('static', filename='favicon-32x32.png') }}">
+      href="{{ url_for('static', filename='branding/favicon-32x32.png') }}">
   <link rel="icon"
       type="image/png"
       sizes="16x16"
-      href="{{ url_for('static', filename='favicon-16x16.png') }}">
+      href="{{ url_for('static', filename='branding/favicon-16x16.png') }}">
   <link rel="apple-touch-icon"
-      href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+      href="{{ url_for('static', filename='branding/apple-touch-icon.png') }}">
   <link rel="icon"
       type="image/x-icon"
-      href="{{ url_for('static', filename='favicon.ico') }}">
+      href="{{ url_for('static', filename='branding/favicon.ico') }}">
 </head>
 <body>
 {% include "_icons.html" %}
@@ -26,7 +26,7 @@
   <div class="top-bar-brand">
     <!-- Logo = home: closes the document and shows the start screen -->
     <button type="button" class="top-bar-home tip-start" onclick="closeDocument()" data-tip="Home" aria-label="Home: close the document">
-      <img src="{{ url_for('static', filename='apple-touch-icon.png') }}" alt="" class="top-bar-logo" />
+      <img src="{{ url_for('static', filename='branding/icon-192.png') }}" alt="" class="top-bar-logo" />
       <span class="top-bar-version">v{{ app_version }}</span>
     </button>
     <button type="button" id="sidebarToggle" class="icon-btn ghost-btn tip-start" onclick="toggleSidebar()" data-tip="Sidebar (⌘\)" aria-label="Toggle sidebar" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#i-panel-left"/></svg></button>
@@ -616,7 +616,7 @@
     <!-- ABOUT -->
     <div id="settingsAboutView">
       <img
-        src="/static/apple-touch-icon.png"
+        src="{{ url_for('static', filename='branding/icon-512.png') }}"
         alt="SJB Writer"
         class="about-app-icon"
       />
